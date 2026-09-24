@@ -9,7 +9,7 @@ export function DeleteRun({ projectId, runId, back }: { projectId: string; runId
   return (
     <Button
       variant="ghost"
-      className="text-red-700"
+      className="text-red-300"
       onClick={async () => {
         if (!confirm("Delete this run?")) return;
         await api(`/api/projects/${projectId}/runs/${runId}`, "DELETE").catch((e) => alert(e.message));

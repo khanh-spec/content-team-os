@@ -36,3 +36,6 @@ export function isEmailAllowed(email: string | undefined | null): boolean {
   const domain = email?.split("@")[1]?.toLowerCase();
   return !!domain && domains.includes(domain);
 }
+
+/** Preview mode: no Supabase configured, so the app serves a read-only sample workspace. */
+export const PREVIEW = !SUPABASE_URL || !SUPABASE_KEY;

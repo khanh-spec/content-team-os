@@ -29,7 +29,7 @@ export async function runDraftReview(
     );
     const { error } = await supabase
       .from("content_drafts")
-      .update({ revised_content: revised, analysis, status: "reviewed", error: null })
+      .update({ revised_content: revised, analysis, status: "review", error: null })
       .eq("id", draftId);
     if (error) throw new Error(error.message);
   } catch (e) {

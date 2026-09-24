@@ -131,7 +131,7 @@ export function FeedbackLog({ projectId, items, drafts }: { projectId: string; i
             <button
               key={s}
               onClick={() => setStatus(s)}
-              className={cn("rounded-full px-3 py-1 text-sm capitalize", status === s ? "bg-ink-900 text-white" : "bg-white text-ink-600 ring-1 ring-ink-200")}
+              className={cn("rounded-full px-3 py-1 text-sm capitalize", status === s ? "bg-brand-600 text-white" : "bg-surface text-ink-600 ring-1 ring-ink-200")}
             >
               {s} ({s === "all" ? items.length : items.filter((f) => f.status === s).length})
             </button>
@@ -153,7 +153,7 @@ export function FeedbackLog({ projectId, items, drafts }: { projectId: string; i
             {filtered.map((f) => {
               const isRule = f.apply_as_rule || f.kind !== "feedback";
               return (
-                <li key={f.id} className={cn("rounded-xl border bg-white p-4", f.status === "archived" ? "border-ink-100 opacity-60" : "border-ink-200")}>
+                <li key={f.id} className={cn("rounded-xl border bg-surface p-4", f.status === "archived" ? "border-ink-100 opacity-60" : "border-ink-200")}>
                   <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
                     <Badge tone={KIND_TONE[f.kind]}>{KIND_LABEL[f.kind]}</Badge>
                     {isRule && f.kind === "feedback" && <Badge tone="brand">Applied as rule</Badge>}
@@ -194,7 +194,7 @@ export function FeedbackLog({ projectId, items, drafts }: { projectId: string; i
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="text-red-700"
+                      className="text-red-300"
                       onClick={async () => {
                         if (!confirm("Delete this entry?")) return;
                         await api(`/api/projects/${projectId}/feedback/${f.id}`, "DELETE").catch((e) => alert(e.message));

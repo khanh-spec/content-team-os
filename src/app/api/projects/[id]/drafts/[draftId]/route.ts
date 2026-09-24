@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { handle, parseBody, requireUser } from "@/lib/api";
 import { runDraftReview } from "@/lib/content/run";
+import { MANUAL_STATUSES } from "@/lib/pipeline";
 
 export const maxDuration = 300;
 
@@ -10,7 +11,7 @@ const Patch = z.object({
   title: z.string().trim().min(1).optional(),
   revised_content: z.string().optional(),
   original_content: z.string().min(20).optional(),
-  status: z.enum(["draft", "reviewed", "approved"]).optional(),
+  status: z.enum(MANUAL_STATUSES).optional(),
 });
 
 export const PATCH = handle<Ctx>(async (req, ctx) => {

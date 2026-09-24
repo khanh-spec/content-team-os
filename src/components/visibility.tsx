@@ -98,7 +98,7 @@ export function VisibilityRunner({ projectId }: { projectId: string }) {
               <div className="h-full bg-brand-600 transition-all" style={{ width: `${(progress.done / progress.total) * 100}%` }} />
             </div>
           )}
-          {progress.failed > 0 && <p className="text-xs text-amber-700">{progress.failed} answer(s) failed. Results use the rest.</p>}
+          {progress.failed > 0 && <p className="text-xs text-amber-300">{progress.failed} answer(s) failed. Results use the rest.</p>}
           {plan && (
             <ul className="max-h-40 space-y-1 overflow-y-auto text-xs text-ink-600">
               {plan.prompts.map((p, i) => (

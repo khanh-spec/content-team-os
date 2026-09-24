@@ -95,7 +95,7 @@ export function DocumentList({ projectId, documents }: { projectId: string; docu
             <button
               key={m}
               onClick={() => setMode(m)}
-              className={cn("flex-1 rounded-md py-1.5 font-medium", mode === m ? "bg-white shadow-sm" : "text-ink-500")}
+              className={cn("flex-1 rounded-md py-1.5 font-medium", mode === m ? "bg-surface shadow-sm" : "text-ink-500")}
             >
               {m === "upload" ? "Upload files" : "Paste text"}
             </button>
@@ -142,9 +142,9 @@ export function DocumentList({ projectId, documents }: { projectId: string; docu
                     <span className="truncate">{q.name}</span>
                     <span className="shrink-0 text-xs">
                       {q.state === "done" ? (
-                        <span className="text-emerald-700">Indexed</span>
+                        <span className="text-emerald-400">Indexed</span>
                       ) : q.state === "error" ? (
-                        <span className="text-red-700" title={q.error}>
+                        <span className="text-red-300" title={q.error}>
                           Failed
                         </span>
                       ) : (
@@ -192,7 +192,7 @@ export function DocumentList({ projectId, documents }: { projectId: string; docu
         {documents.length === 0 ? (
           <Empty title="No documents yet">Upload brand guidelines, fact sheets or past articles the client approved.</Empty>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-ink-200 bg-white">
+          <div className="overflow-hidden rounded-xl border border-ink-200 bg-surface">
             <table className="w-full text-sm">
               <thead className="bg-ink-50 text-left text-xs uppercase tracking-wide text-ink-500">
                 <tr>
@@ -212,7 +212,7 @@ export function DocumentList({ projectId, documents }: { projectId: string; docu
                         {d.size_bytes ? ` · ${Math.max(1, Math.round(d.size_bytes / 1024))} KB` : ""}
                         {d.status === "processing" && " · indexing…"}
                       </p>
-                      {d.status === "error" && <p className="mt-1 text-xs text-red-700">{d.error}</p>}
+                      {d.status === "error" && <p className="mt-1 text-xs text-red-300">{d.error}</p>}
                     </td>
                     <td className="px-4 py-3">
                       <Badge tone={d.status === "error" ? "red" : "gray"}>{categoryLabel(d.category)}</Badge>
@@ -225,7 +225,7 @@ export function DocumentList({ projectId, documents }: { projectId: string; docu
                             Open
                           </a>
                         )}
-                        <button onClick={() => remove(d.id)} className="rounded-md px-2 py-1 text-xs text-red-700 hover:bg-red-50">
+                        <button onClick={() => remove(d.id)} className="rounded-md px-2 py-1 text-xs text-red-300 hover:bg-red-500/10">
                           Delete
                         </button>
                       </div>

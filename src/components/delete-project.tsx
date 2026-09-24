@@ -9,8 +9,8 @@ export function DeleteProject({ projectId }: { projectId: string }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   return (
-    <Card className="border-red-200">
-      <h3 className="font-semibold text-red-800">Delete project</h3>
+    <Card className="border-red-500/30">
+      <h3 className="font-semibold text-red-300">Delete project</h3>
       <p className="mb-3 text-sm text-ink-600">Removes all documents, files, feedback, drafts and research for this project.</p>
       <Button
         variant="danger"

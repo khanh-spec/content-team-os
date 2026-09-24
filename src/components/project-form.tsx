@@ -227,7 +227,7 @@ export function ProjectForm({ project }: { project?: Project }) {
       <ErrorNote>{error}</ErrorNote>
       <div className="flex items-center gap-3">
         <Button disabled={saving}>{saving ? "Saving…" : project ? "Save profile" : "Create project"}</Button>
-        {saved && <span className="text-sm text-emerald-700">Saved</span>}
+        {saved && <span className="text-sm text-emerald-400">Saved</span>}
       </div>
     </form>
   );

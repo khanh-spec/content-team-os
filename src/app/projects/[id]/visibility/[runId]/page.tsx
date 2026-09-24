@@ -45,8 +45,8 @@ export default async function VisibilityRunPage({ params }: PageProps<"/projects
         </div>
       </div>
 
-      {!s && <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">This check hasn&apos;t been scored yet (it may have been interrupted). Score the answers collected so far.</p>}
-      {run.sources?.baseline.errors.length ? <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">{run.sources.baseline.errors.join(" · ")}</p> : null}
+      {!s && <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-300">This check hasn&apos;t been scored yet (it may have been interrupted). Score the answers collected so far.</p>}
+      {run.sources?.baseline.errors.length ? <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-300">{run.sources.baseline.errors.join(" · ")}</p> : null}
 
       {s && (
         <>
@@ -181,7 +181,7 @@ export default async function VisibilityRunPage({ params }: PageProps<"/projects
                 {smp.error ? <Badge tone="red" className="ml-2">error</Badge> : <span className="ml-2 text-xs text-ink-500">{(smp.mentions as Mention[] | null)?.length ?? 0} businesses</span>}
               </summary>
               {smp.error ? (
-                <p className="mt-2 text-red-700">{smp.error}</p>
+                <p className="mt-2 text-red-300">{smp.error}</p>
               ) : (
                 <div className="mt-2 space-y-2">
                   <div className="flex flex-wrap gap-1">

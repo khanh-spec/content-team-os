@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { NewDraftForm } from "@/components/studio";
-import { Badge, Card, SectionTitle, formatDate } from "@/components/ui";
+import { StatusBadge, Card, SectionTitle, formatDate } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function StudioPage({ params, searchParams }: PageProps<"/projects/[id]/studio">) {
@@ -37,7 +37,7 @@ export default async function StudioPage({ params, searchParams }: PageProps<"/p
               <Link key={d.id} href={`/projects/${id}/studio/${d.id}`} className="block px-4 py-3 hover:bg-ink-50">
                 <p className="font-medium">{d.title}</p>
                 <p className="mt-1 flex items-center gap-2 text-xs text-ink-500">
-                  <Badge tone={d.status === "approved" ? "green" : d.status === "error" ? "red" : d.status === "processing" ? "amber" : "gray"}>{d.status}</Badge>
+                  <StatusBadge status={d.status} />
                   {d.content_type && <span>{d.content_type}</span>}
                   <span>{formatDate(d.updated_at)}</span>
                 </p>

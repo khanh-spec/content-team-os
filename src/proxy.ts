@@ -1,18 +1,18 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { SUPABASE_KEY, SUPABASE_URL, isEmailAllowed } from "@/lib/env";
+import { PREVIEW_MESSAGE } from "@/lib/demo/client";
+import { PREVIEW, SUPABASE_KEY, SUPABASE_URL, isEmailAllowed } from "@/lib/env";
 
 const PUBLIC_PATHS = ["/login", "/auth"];
 
 export async function proxy(request: NextRequest) {
-  // Without Supabase settings nothing works; show the setup checklist instead
-  // of crashing every request.
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
-    if (request.nextUrl.pathname === "/setup") return NextResponse.next();
-    if (request.nextUrl.pathname.startsWith("/api/")) {
-      return NextResponse.json({ error: "Supabase is not configured. See /setup" }, { status: 503 });
+  // Preview mode (no Supabase): browse the sample workspace, but block every
+  // write so nothing pretends to save and no API credits are spent.
+  if (PREVIEW) {
+    if (request.nextUrl.pathname.startsWith("/api/") && request.method !== "GET") {
+      return NextResponse.json({ error: PREVIEW_MESSAGE }, { status: 403 });
     }
-    return NextResponse.redirect(new URL("/setup", request.url));
+    return NextResponse.next();
   }
 
   let response = NextResponse.next({ request });

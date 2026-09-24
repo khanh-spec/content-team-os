@@ -32,7 +32,7 @@ export function LoginForm({ initialError }: { initialError: string | null }) {
           <h1 className="mt-3 text-xl font-semibold">SEO/GEO Brand Manager</h1>
           <p className="text-sm text-ink-500">Heads on Pillows content team</p>
         </div>
-        <div className="rounded-xl border border-ink-200 bg-white p-6 shadow-sm">
+        <div className="rounded-xl border border-ink-200 bg-surface p-6 shadow-sm">
           {state === "sent" ? (
             <p className="text-sm text-ink-700">
               Check <strong>{email}</strong> for a sign-in link.

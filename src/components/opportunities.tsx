@@ -263,7 +263,7 @@ function ReportView({ projectId, data }: { projectId: string; data: { created_at
               <p className="mt-2 text-xs">
                 <span className="font-medium">Facts: </span>
                 {b.brand_facts_to_use.map((f, j) => (
-                  <span key={j} className={cn(f.startsWith("MISSING") && "text-amber-700")}>
+                  <span key={j} className={cn(f.startsWith("MISSING") && "text-amber-300")}>
                     {f}
                     {j < b.brand_facts_to_use.length - 1 ? "; " : ""}
                   </span>
@@ -284,9 +284,9 @@ function ReportView({ projectId, data }: { projectId: string; data: { created_at
         ))}
       </div>
       {r.missing_brand_facts.length > 0 && (
-        <div className="rounded-lg bg-amber-50 p-3 text-sm">
-          <p className="font-medium text-amber-900">Facts to request from the client</p>
-          <ul className="mt-1 list-disc pl-5 text-amber-900">
+        <div className="rounded-lg bg-amber-500/10 p-3 text-sm">
+          <p className="font-medium text-amber-300">Facts to request from the client</p>
+          <ul className="mt-1 list-disc pl-5 text-amber-300">
             {r.missing_brand_facts.map((f, i) => (
               <li key={i}>{f}</li>
             ))}

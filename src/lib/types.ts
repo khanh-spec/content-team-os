@@ -1,3 +1,5 @@
+import type { DraftStatus } from "@/lib/pipeline";
+
 export type Competitor = { name: string; website?: string; aliases?: string[] };
 
 export type Project = {
@@ -100,7 +102,7 @@ export type DraftRow = {
   revised_content: string | null;
   analysis: DraftAnalysis | null;
   research_run_ids: string[];
-  status: "draft" | "processing" | "reviewed" | "approved" | "error";
+  status: DraftStatus;
   error: string | null;
   created_at: string;
   updated_at: string;

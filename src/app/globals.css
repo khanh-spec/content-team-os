@@ -1,30 +1,37 @@
 @import "tailwindcss";
 
+/* Dark workspace theme. The ink scale is inverted (50 = page background,
+   900 = primary text) so components read the same in code as a light theme. */
 @theme {
-  --color-brand-50: #f2f7f5;
-  --color-brand-100: #dfece6;
-  --color-brand-200: #bfd9cd;
-  --color-brand-300: #93bfab;
-  --color-brand-500: #3f8a6c;
-  --color-brand-600: #2f7358;
-  --color-brand-700: #265c47;
-  --color-brand-800: #1f4a3a;
-  --color-brand-900: #183a2e;
+  --color-brand-50: #16132b;
+  --color-brand-100: #1d1840;
+  --color-brand-200: #2c2563;
+  --color-brand-300: #3d3494;
+  --color-brand-500: #7b6fff;
+  --color-brand-600: #5e50f5;
+  --color-brand-700: #5647f0;
+  --color-brand-800: #9d93ff;
+  --color-brand-900: #c9c3ff;
 
-  --color-ink-50: #f8f8f6;
-  --color-ink-100: #f0efeb;
-  --color-ink-200: #e2e0da;
-  --color-ink-300: #cbc8bf;
-  --color-ink-400: #a19d92;
-  --color-ink-500: #7a766b;
-  --color-ink-600: #5e5a51;
-  --color-ink-700: #48453e;
-  --color-ink-800: #302e29;
-  --color-ink-900: #1d1c19;
+  --color-ink-50: #0b0b0f;
+  --color-ink-100: #17171e;
+  --color-ink-200: #26262f;
+  --color-ink-300: #34343f;
+  --color-ink-400: #5d5d6b;
+  --color-ink-500: #8b8b99;
+  --color-ink-600: #a6a6b3;
+  --color-ink-700: #c3c3cd;
+  --color-ink-800: #dcdce3;
+  --color-ink-900: #f4f4f7;
 
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --color-surface: #111116;
+  --color-surface-2: #16161d;
+
+  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
+
+:root { color-scheme: dark; }
 
 body {
   background: var(--color-ink-50);
@@ -32,18 +39,22 @@ body {
 }
 
 /* Rendered Markdown (revised content, reports) */
-.prose-lite { line-height: 1.7; font-size: 0.925rem; }
-.prose-lite h1 { font-size: 1.5rem; font-weight: 700; margin: 1.2em 0 0.5em; }
-.prose-lite h2 { font-size: 1.25rem; font-weight: 650; margin: 1.2em 0 0.5em; }
-.prose-lite h3 { font-size: 1.05rem; font-weight: 650; margin: 1em 0 0.4em; }
+.prose-lite { line-height: 1.75; font-size: 0.9rem; color: var(--color-ink-800); }
+.prose-lite h1 { font-size: 1.45rem; font-weight: 600; margin: 1.2em 0 0.5em; color: var(--color-ink-900); }
+.prose-lite h2 { font-size: 1.2rem; font-weight: 600; margin: 1.2em 0 0.5em; color: var(--color-ink-900); }
+.prose-lite h3 { font-size: 1.02rem; font-weight: 600; margin: 1em 0 0.4em; color: var(--color-ink-900); }
 .prose-lite p, .prose-lite ul, .prose-lite ol, .prose-lite table { margin: 0.6em 0; }
 .prose-lite ul { list-style: disc; padding-left: 1.4em; }
 .prose-lite ol { list-style: decimal; padding-left: 1.4em; }
-.prose-lite a { color: var(--color-brand-700); text-decoration: underline; }
+.prose-lite a { color: var(--color-brand-800); text-decoration: underline; }
 .prose-lite table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
 .prose-lite th, .prose-lite td { border: 1px solid var(--color-ink-200); padding: 0.35em 0.6em; text-align: left; }
 .prose-lite blockquote { border-left: 3px solid var(--color-ink-300); padding-left: 0.9em; color: var(--color-ink-600); }
 .prose-lite > :first-child { margin-top: 0; }
 
-.diff-add { background: #dcfce7; color: #14532d; border-radius: 2px; }
-.diff-del { background: #fee2e2; color: #7f1d1d; text-decoration: line-through; border-radius: 2px; }
+.diff-add { background: rgb(16 185 129 / 0.16); color: #6ee7b7; border-radius: 2px; }
+.diff-del { background: rgb(239 68 68 / 0.16); color: #fca5a5; text-decoration: line-through; border-radius: 2px; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--color-ink-300); border-radius: 8px; border: 2px solid var(--color-ink-50); }
+::-webkit-scrollbar-track { background: transparent; }

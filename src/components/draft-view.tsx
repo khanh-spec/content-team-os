@@ -9,7 +9,8 @@ import { api } from "@/lib/fetcher";
 import type { DraftRow, FeedbackRow } from "@/lib/types";
 import { FeedbackForm } from "@/components/feedback";
 import { RunPicker, type RunOption } from "@/components/studio";
-import { Badge, Button, Card, ErrorNote, Spinner, Textarea, cn, formatDate, severityTone } from "@/components/ui";
+import { Badge, StatusBadge, Button, Card, ErrorNote, Select, Spinner, Textarea, cn, formatDate, severityTone } from "@/components/ui";
+import { MANUAL_STATUSES, stage } from "@/lib/pipeline";
 
 type Tab = "revised" | "diff" | "original";
 
@@ -48,7 +49,7 @@ export function DraftView({ projectId, draft, feedback, runs }: { projectId: str
         <div>
           <h2 className="text-xl font-semibold">{draft.title}</h2>
           <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-ink-500">
-            <Badge tone={draft.status === "approved" ? "green" : draft.status === "error" ? "red" : "gray"}>{draft.status}</Badge>
+            <StatusBadge status={draft.status} />
             {draft.content_type && <span>{draft.content_type}</span>}
             {draft.target_keyword && <span>· {draft.target_keyword}</span>}
             <span>· updated {formatDate(draft.updated_at)}</span>
@@ -69,18 +70,23 @@ export function DraftView({ projectId, draft, feedback, runs }: { projectId: str
           <Button variant="secondary" onClick={() => setRerunOpen((v) => !v)} disabled={!!busy}>
             Re-run review
           </Button>
-          {draft.status !== "approved" ? (
-            <Button disabled={!!busy || !draft.revised_content} onClick={() => act("approve", () => api(url, "PATCH", { status: "approved" }))}>
-              Approve
-            </Button>
-          ) : (
-            <Button variant="secondary" onClick={() => act("unapprove", () => api(url, "PATCH", { status: "reviewed" }))}>
-              Unapprove
-            </Button>
-          )}
+          <Select
+            value={draft.status === "processing" || draft.status === "error" ? "" : draft.status}
+            disabled={!!busy || draft.status === "processing"}
+            onChange={(e) => e.target.value && act("status", () => api(url, "PATCH", { status: e.target.value }))}
+            className="w-40"
+            aria-label="Pipeline stage"
+          >
+            {(draft.status === "processing" || draft.status === "error") && <option value="">{stage(draft.status).label}</option>}
+            {MANUAL_STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {stage(s).label}
+              </option>
+            ))}
+          </Select>
           <Button
             variant="ghost"
-            className="text-red-700"
+            className="text-red-300"
             onClick={async () => {
               if (!confirm("Delete this draft?")) return;
               await api(url, "DELETE");
@@ -114,7 +120,7 @@ export function DraftView({ projectId, draft, feedback, runs }: { projectId: str
 
       <ErrorNote>{error || draft.error}</ErrorNote>
       {draft.status === "processing" && !busy && (
-        <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">This draft is still processing or was interrupted. Refresh in a minute, or re-run the review.</p>
+        <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-300">This draft is still processing or was interrupted. Refresh in a minute, or re-run the review.</p>
       )}
 
       {a && (

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Badge, ButtonLink, Card, Stat, formatDate, pct } from "@/components/ui";
+import { Badge, StatusBadge, ButtonLink, Card, Stat, formatDate, pct } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
 import type { VisibilitySummary } from "@/lib/research/visibility";
 import type { Project } from "@/lib/types";
@@ -55,7 +55,7 @@ export default async function ProjectOverview({ params }: PageProps<"/projects/[
                     {d.title}
                   </Link>
                   <span className="flex items-center gap-3 text-xs text-ink-500">
-                    <Badge tone={d.status === "approved" ? "green" : d.status === "error" ? "red" : "gray"}>{d.status}</Badge>
+                    <StatusBadge status={d.status} />
                     {formatDate(d.updated_at)}
                   </span>
                 </li>
@@ -102,7 +102,7 @@ export default async function ProjectOverview({ params }: PageProps<"/projects/[
           <ul className="space-y-2 text-sm">
             {checks.map((c) => (
               <li key={c.label} className="flex items-center gap-2">
-                <span className={c.ok ? "text-emerald-600" : "text-ink-300"}>{c.ok ? "●" : "○"}</span>
+                <span className={c.ok ? "text-emerald-400" : "text-ink-300"}>{c.ok ? "●" : "○"}</span>
                 <span className="w-24 shrink-0 text-xs text-ink-500">{c.pillar}</span>
                 <span className={c.ok ? "text-ink-800" : "text-ink-500"}>{c.label}</span>
               </li>

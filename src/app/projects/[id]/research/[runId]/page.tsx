@@ -40,10 +40,10 @@ export default async function ResearchRunPage({ params }: PageProps<"/projects/[
         </div>
       </div>
 
-      {run.status === "error" && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{run.error}</p>}
-      {run.status === "running" && <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">Still running or interrupted. Refresh in a moment.</p>}
+      {run.status === "error" && <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">{run.error}</p>}
+      {run.status === "running" && <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-300">Still running or interrupted. Refresh in a moment.</p>}
       {src?.errors?.length ? (
-        <details className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+        <details className="rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
           <summary>{src.errors.length} source(s) returned errors</summary>
           <ul className="mt-2 list-disc pl-5">
             {src.errors.map((e, i) => (
@@ -103,15 +103,15 @@ export default async function ResearchRunPage({ params }: PageProps<"/projects/[
 
             <Card>
               <h3 className="mb-3 font-semibold">Brand perception</h3>
-              {!s.brand_perception.found_in_sources && <p className="mb-2 text-xs text-amber-700">The brand barely appears in these sources, which is itself a finding.</p>}
+              {!s.brand_perception.found_in_sources && <p className="mb-2 text-xs text-amber-300">The brand barely appears in these sources, which is itself a finding.</p>}
               <p className="text-sm text-ink-800">{s.brand_perception.summary}</p>
               <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
                 <div>
-                  <p className="mb-1 text-xs font-semibold uppercase text-emerald-700">Strengths</p>
+                  <p className="mb-1 text-xs font-semibold uppercase text-emerald-400">Strengths</p>
                   <ul className="list-disc space-y-0.5 pl-4">{s.brand_perception.strengths.map((x, i) => <li key={i}>{x}</li>)}</ul>
                 </div>
                 <div>
-                  <p className="mb-1 text-xs font-semibold uppercase text-red-700">Weaknesses</p>
+                  <p className="mb-1 text-xs font-semibold uppercase text-red-300">Weaknesses</p>
                   <ul className="list-disc space-y-0.5 pl-4">{s.brand_perception.weaknesses.map((x, i) => <li key={i}>{x}</li>)}</ul>
                 </div>
               </div>
@@ -126,8 +126,8 @@ export default async function ResearchRunPage({ params }: PageProps<"/projects/[
                     <p className="text-xs text-ink-500">{c.visibility}</p>
                     <p className="mt-0.5 text-ink-700">{c.positioning}</p>
                     <p className="mt-0.5 text-xs">
-                      <span className="text-emerald-700">+ {c.strengths.join("; ")}</span>
-                      {c.weaknesses.length > 0 && <span className="text-red-700"> · − {c.weaknesses.join("; ")}</span>}
+                      <span className="text-emerald-400">+ {c.strengths.join("; ")}</span>
+                      {c.weaknesses.length > 0 && <span className="text-red-300"> · − {c.weaknesses.join("; ")}</span>}
                     </p>
                   </li>
                 ))}
