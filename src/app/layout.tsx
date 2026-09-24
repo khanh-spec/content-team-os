@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
+import { SUPABASE_KEY, SUPABASE_URL } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 import "./globals.css";
 
@@ -13,9 +14,7 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  const user = data.user;
+  const user = SUPABASE_URL && SUPABASE_KEY ? (await (await createClient()).auth.getUser()).data.user : null;
 
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>

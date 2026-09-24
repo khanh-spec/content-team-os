@@ -5,6 +5,16 @@ import { SUPABASE_KEY, SUPABASE_URL, isEmailAllowed } from "@/lib/env";
 const PUBLIC_PATHS = ["/login", "/auth"];
 
 export async function proxy(request: NextRequest) {
+  // Without Supabase settings nothing works; show the setup checklist instead
+  // of crashing every request.
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
+    if (request.nextUrl.pathname === "/setup") return NextResponse.next();
+    if (request.nextUrl.pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Supabase is not configured. See /setup" }, { status: 503 });
+    }
+    return NextResponse.redirect(new URL("/setup", request.url));
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(SUPABASE_URL, SUPABASE_KEY, {
