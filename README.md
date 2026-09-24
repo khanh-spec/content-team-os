@@ -45,7 +45,46 @@ Suggested next steps: GSC OAuth with a daily sync and per-page drill-down; sched
 
 Next.js 16 (App Router) · Supabase (Postgres + pgvector, Storage, Auth magic link) · OpenAI Responses API (structured outputs + web search) · SerpApi · Tailwind CSS 4. Deploys to Vercel.
 
-## Setup
+## Try it locally in VS Code (no hosted Supabase needed)
+
+Local Supabase runs in Docker, so you can see the full app before creating a real Supabase project.
+
+**You need:** Node.js 20.9+ and [Docker Desktop](https://www.docker.com/products/docker-desktop/) running.
+
+```bash
+git clone https://github.com/khanh-spec/content-team-os.git
+cd content-team-os
+git checkout claude/seo-geo-brand-manager-beov9a
+npm install
+
+# 1. Start local Supabase (first run downloads images, takes a few minutes).
+#    This also applies supabase/migrations/0001_init.sql automatically.
+npm run db:start
+
+# 2. Create your env file
+cp .env.example .env.local
+```
+
+`npm run db:start` prints an **API URL** (`http://127.0.0.1:54321`) and a **Publishable key** (older CLI versions call it the *anon key*). Put them in `.env.local`, together with your OpenAI and SerpApi keys:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable / anon key from db:start>
+ALLOWED_EMAIL_DOMAINS=
+OPENAI_API_KEY=<your key>
+SERPAPI_API_KEY=<your key>
+```
+
+```bash
+# 3. Run the app
+npm run dev
+```
+
+Open http://localhost:3000 and sign in with any email. Local Supabase doesn't send real emails: open **http://127.0.0.1:54324** (the local mail inbox), then click the sign-in link there.
+
+Useful commands: `npm run db:status` (show URLs and keys again), `npm run db:reset` (wipe local data and re-apply migrations), and `npm run db:stop`.
+
+## Deploy (hosted Supabase + Vercel)
 
 1. **Supabase**
    - Create a project. In the SQL editor, run `supabase/migrations/0001_init.sql`. It creates the tables, the pgvector index, RLS policies and the private `brand-files` bucket.

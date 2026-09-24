@@ -8,7 +8,11 @@
     "start": "next start",
     "lint": "eslint",
     "test": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/selftest.ts",
-    "typecheck": "next typegen && tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit",
+    "db:start": "npx supabase@latest start",
+    "db:stop": "npx supabase@latest stop",
+    "db:reset": "npx supabase@latest db reset",
+    "db:status": "npx supabase@latest status"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
