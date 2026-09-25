@@ -8,22 +8,25 @@ import remarkGfm from "remark-gfm";
 import { api } from "@/lib/fetcher";
 import type { DraftRow, FeedbackRow } from "@/lib/types";
 import { FeedbackForm } from "@/components/feedback";
+import { OptimisationPanel } from "@/components/optimisation-panel";
 import { RunPicker, type RunOption } from "@/components/studio";
 import { Badge, StatusBadge, Button, Card, ErrorNote, Select, Spinner, Textarea, cn, formatDate, severityTone } from "@/components/ui";
 import { MANUAL_STATUSES, stage } from "@/lib/pipeline";
 
 type Tab = "revised" | "diff" | "original";
 
-export function DraftView({ projectId, draft, feedback, runs }: { projectId: string; draft: DraftRow; feedback: FeedbackRow[]; runs: RunOption[] }) {
+export function DraftView({ projectId, draft, feedback, runs, aiEnabled }: { projectId: string; draft: DraftRow; feedback: FeedbackRow[]; runs: RunOption[]; aiEnabled: boolean }) {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("revised");
+  const [tab, setTab] = useState<Tab>(draft.revised_content ? "revised" : "original");
+  const [editingOriginal, setEditingOriginal] = useState(false);
+  const [originalText, setOriginalText] = useState(draft.original_content);
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(draft.revised_content ?? "");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [rerunOpen, setRerunOpen] = useState(false);
-  const [rerun, setRerun] = useState({ instructions: "", live_check: false, research_run_ids: draft.research_run_ids });
+  const [rerun, setRerun] = useState({ instructions: "", live_check: false, research_run_ids: draft.research_run_ids, ai_rewrite: aiEnabled, compare_serp: false });
   const a = draft.analysis;
 
   const diff = useMemo(() => (tab === "diff" && draft.revised_content ? diffWords(draft.original_content, draft.revised_content) : []), [tab, draft]);
@@ -68,7 +71,7 @@ export function DraftView({ projectId, draft, feedback, runs }: { projectId: str
             {copied ? "Copied" : "Copy revised"}
           </Button>
           <Button variant="secondary" onClick={() => setRerunOpen((v) => !v)} disabled={!!busy}>
-            Re-run review
+            {aiEnabled ? "Re-run review" : "Re-check"}
           </Button>
           <Select
             value={draft.status === "processing" || draft.status === "error" ? "" : draft.status}
@@ -100,12 +103,24 @@ export function DraftView({ projectId, draft, feedback, runs }: { projectId: str
 
       {rerunOpen && (
         <Card className="space-y-3">
-          <p className="text-sm text-ink-600">Re-runs the review with the latest brand library, feedback rules and selected research.</p>
-          <RunPicker runs={runs} value={rerun.research_run_ids} onChange={(ids) => setRerun({ ...rerun, research_run_ids: ids })} />
-          <Textarea rows={2} placeholder="Extra instructions (optional)" value={rerun.instructions} onChange={(e) => setRerun({ ...rerun, instructions: e.target.value })} />
+          <p className="text-sm text-ink-600">Re-runs the checks with the latest brand profile and feedback rules{aiEnabled ? ", and optionally the AI rewrite" : ""}.</p>
           <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={rerun.live_check} onChange={(e) => setRerun({ ...rerun, live_check: e.target.checked })} /> Live web fact-check
+            <input type="checkbox" checked={rerun.compare_serp} onChange={(e) => setRerun({ ...rerun, compare_serp: e.target.checked })} /> Compare with the live SERP (1 SerpApi search)
           </label>
+          {aiEnabled && (
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={rerun.ai_rewrite} onChange={(e) => setRerun({ ...rerun, ai_rewrite: e.target.checked })} /> AI rewrite
+            </label>
+          )}
+          {aiEnabled && rerun.ai_rewrite && (
+            <>
+              <RunPicker runs={runs} value={rerun.research_run_ids} onChange={(ids) => setRerun({ ...rerun, research_run_ids: ids })} />
+              <Textarea rows={2} placeholder="Extra instructions (optional)" value={rerun.instructions} onChange={(e) => setRerun({ ...rerun, instructions: e.target.value })} />
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={rerun.live_check} onChange={(e) => setRerun({ ...rerun, live_check: e.target.checked })} /> Live web fact-check
+              </label>
+            </>
+          )}
           <Button disabled={!!busy} onClick={() => act("rerun", () => api(url, "POST", rerun)).then(() => setRerunOpen(false))}>
             {busy === "rerun" ? (
               <>
@@ -152,13 +167,13 @@ export function DraftView({ projectId, draft, feedback, runs }: { projectId: str
         <Card className="p-0">
           <div className="flex items-center justify-between border-b border-ink-100 px-4">
             <div className="flex">
-              {(["revised", "diff", "original"] as const).map((t) => (
+              {(draft.revised_content ? (["revised", "diff", "original"] as const) : (["original"] as const)).map((t) => (
                 <button
                   key={t}
                   onClick={() => setTab(t)}
                   className={cn("border-b-2 px-3 py-2.5 text-sm font-medium capitalize", tab === t ? "border-brand-700 text-brand-800" : "border-transparent text-ink-500")}
                 >
-                  {t === "diff" ? "Changes" : t}
+                  {t === "diff" ? "Changes" : t === "original" && !draft.revised_content ? "Content" : t}
                 </button>
               ))}
             </div>
@@ -201,11 +216,34 @@ export function DraftView({ projectId, draft, feedback, runs }: { projectId: str
                 ))}
               </div>
             )}
-            {tab === "original" && <div className="whitespace-pre-wrap text-sm leading-7 text-ink-800">{draft.original_content}</div>}
+            {tab === "original" &&
+              (editingOriginal ? (
+                <div className="space-y-2">
+                  <Textarea rows={24} value={originalText} onChange={(e) => setOriginalText(e.target.value)} className="font-mono text-[13px]" />
+                  <div className="flex gap-2">
+                    <Button size="sm" disabled={!!busy} onClick={() => act("recheck", () => api(url, "PATCH", { original_content: originalText })).then(() => setEditingOriginal(false))}>
+                      {busy === "recheck" ? "Checking…" : "Save & re-check"}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => (setEditingOriginal(false), setOriginalText(draft.original_content))}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div className="mb-3 flex justify-end">
+                    <Button size="sm" variant="secondary" onClick={() => setEditingOriginal(true)}>
+                      Edit & re-check
+                    </Button>
+                  </div>
+                  <div className="whitespace-pre-wrap text-sm leading-7 text-ink-800">{draft.original_content}</div>
+                </div>
+              ))}
           </div>
         </Card>
 
         <div className="space-y-4">
+          {draft.optimisation && <OptimisationPanel report={draft.optimisation} />}
           {a && a.fact_checks.length > 0 && (
             <Card>
               <h3 className="mb-3 font-semibold">Fact-check</h3>

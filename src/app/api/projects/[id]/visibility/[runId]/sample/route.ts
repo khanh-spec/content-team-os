@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { HttpError, handle, must, parseBody, requireUser } from "@/lib/api";
+import { requireAI } from "@/lib/ai";
 import { loadProject } from "@/lib/context";
 import { runChatGptSample, type VisibilityPlan } from "@/lib/research/visibility";
 
@@ -14,6 +15,7 @@ export const POST = handle<Ctx>(async (req, ctx) => {
   const { id, runId } = await ctx.params;
   const { supabase } = await requireUser();
   const { prompt_index, iteration } = await parseBody(req, Body);
+  const ai = await requireAI(supabase);
   const [project, run] = await Promise.all([
     loadProject(supabase, id),
     supabase.from("research_runs").select("params").eq("id", runId).eq("project_id", id).single().then(must),
@@ -24,7 +26,7 @@ export const POST = handle<Ctx>(async (req, ctx) => {
 
   let row;
   try {
-    const result = await runChatGptSample(project, prompt);
+    const result = await runChatGptSample(ai, project, prompt);
     row = { ...result, error: null };
   } catch (e) {
     row = { answer: null, mentions: null, citations: null, error: e instanceof Error ? e.message : String(e) };

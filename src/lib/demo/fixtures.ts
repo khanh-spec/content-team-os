@@ -1,5 +1,11 @@
 // Sample workspace shown in preview mode (no Supabase configured).
-// All businesses and facts here are fictional.
+// All businesses and facts here are fictional. Rule-engine outputs (research,
+// briefs, optimisation reports) are computed from the sample data at load.
+
+import { buildBrief } from "@/lib/intel/brief";
+import { optimiseContent } from "@/lib/intel/optimise";
+import { analyseSerp } from "@/lib/intel/serp";
+import type { Project } from "@/lib/types";
 
 const P1 = "11111111-1111-4111-8111-111111111111";
 const P2 = "22222222-2222-4222-8222-222222222222";
@@ -36,6 +42,12 @@ const project = (over: Record<string, unknown>) => ({
   target_customers: null,
   competitors: [],
   notes: null,
+  products: null,
+  restricted_claims: null,
+  english_variant: "British English",
+  sentence_style: null,
+  cta_preference: null,
+  site_pages: [],
   created_by: DEMO_USER.id,
   created_at: ago(40),
   updated_at: ago(1),
@@ -59,6 +71,17 @@ const projects = [
     usps: "Riverside rooms with balconies\nFree daily lantern-making workshop\nRooftop breakfast overlooking the old town",
     brand_facts: "28 rooms and suites\n6-minute walk to the Japanese Covered Bridge\nRooftop pool open 7am–9pm\nFree bicycles for guests\nAirport transfer from Da Nang: 45 minutes, bookable at reception",
     tone_of_voice: "Warm, understated, locally knowledgeable. Short sentences. No hype.",
+    products: "Riverside rooms and suites\nRooftop breakfast restaurant\nLantern-making workshop\nAirport transfers",
+    restricted_claims: "Cannot claim a private beach\nCannot claim Michelin-starred dining\nCannot call the property a resort",
+    sentence_style: "Short sentences, second person, no exclamation marks",
+    cta_preference: "Check availability",
+    site_pages: [
+      { title: "Rooms & Suites", url: "https://lanternhouse.example/rooms", type: "rooms" },
+      { title: "Rooftop breakfast", url: "https://lanternhouse.example/dining", type: "dining" },
+      { title: "Lantern-making workshop", url: "https://lanternhouse.example/workshop", type: "experiences" },
+      { title: "Airport transfers & getting here", url: "https://lanternhouse.example/getting-here", type: "transport" },
+      { title: "Offers", url: "https://lanternhouse.example/offers", type: "offers" },
+    ],
     words_to_use: "riverside, old town, lantern, slow mornings",
     words_to_avoid: "hidden gem, nestled, luxury (we are boutique, not luxury), resort",
     target_customers: "Couples 28–45 from Australia, UK and Korea on a 3–4 night central Vietnam trip; small families wanting walkable access to the old town.",
@@ -93,8 +116,8 @@ const projects = [
 ];
 
 const documents = [
-  { id: "d1000000-0000-4000-8000-000000000001", project_id: P1, title: "Lantern House brand guidelines 2026", category: "brand_guideline", source: "upload", storage_path: `${P1}/brand-guidelines.pdf`, mime_type: "application/pdf", size_bytes: 2_400_000, content_text: null, status: "ready", error: null, created_at: ago(30) },
-  { id: "d1000000-0000-4000-8000-000000000002", project_id: P1, title: "Room types & amenities", category: "fact_sheet", source: "paste", storage_path: null, mime_type: "text/markdown", size_bytes: 3_100, content_text: null, status: "ready", error: null, created_at: ago(28) },
+  { id: "d1000000-0000-4000-8000-000000000001", project_id: P1, title: "Lantern House brand guidelines 2026", category: "brand_guideline", source: "upload", storage_path: `${P1}/brand-guidelines.pdf`, mime_type: "application/pdf", size_bytes: 2_400_000, content_text: "Lantern House Hoi An brand guidelines. We are a boutique hotel, never a resort. Voice: warm, understated, local. Use UK English. Avoid 'hidden gem', 'nestled' and 'luxury'. Always end with 'Check availability'. The free lantern-making workshop runs daily at 4pm in the courtyard. The hotel has 28 rooms, a rooftop pool open 7am to 9pm and free bicycles. We do not have a spa or a private beach.", status: "ready", error: null, created_at: ago(30) },
+  { id: "d1000000-0000-4000-8000-000000000002", project_id: P1, title: "Room types & amenities", category: "fact_sheet", source: "paste", storage_path: null, mime_type: "text/markdown", size_bytes: 3_100, content_text: "Deluxe River View (32 sqm, balcony). Superior Garden (26 sqm). Family Suite (48 sqm, sleeps 4). Rooftop breakfast 6.30–10.30am. Airport transfer from Da Nang: 45 minutes, bookable at reception.", status: "ready", error: null, created_at: ago(28) },
   { id: "d1000000-0000-4000-8000-000000000003", project_id: P1, title: "Approved blog: 48 hours in Hoi An", category: "writing_sample", source: "upload", storage_path: `${P1}/48-hours.docx`, mime_type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", size_bytes: 88_000, content_text: null, status: "ready", error: null, created_at: ago(21) },
   { id: "d1000000-0000-4000-8000-000000000004", project_id: P1, title: "Q3 content brief", category: "requirement", source: "upload", storage_path: `${P1}/q3-brief.pptx`, mime_type: "application/vnd.openxmlformats-officedocument.presentationml.presentation", size_bytes: 1_200_000, content_text: null, status: "ready", error: null, created_at: ago(9) },
   { id: "d2000000-0000-4000-8000-000000000001", project_id: P2, title: "Villa fact sheet", category: "fact_sheet", source: "paste", storage_path: null, mime_type: "text/markdown", size_bytes: 1_900, content_text: null, status: "ready", error: null, created_at: ago(12) },
@@ -190,16 +213,33 @@ const localSummary = {
 
 const localSources = {
   query: "where to stay in hoi an for couples",
-  organic: [{ position: 1, title: "Where to Stay in Hoi An: Best Areas & Hotels", link: "https://example.com/where-to-stay-hoi-an", snippet: "Old town, Cam Thanh, An Bang or Cua Dai…", source: "example.com" }],
-  questions: [{ question: "Is it better to stay in Hoi An old town or An Bang beach?", snippet: "The old town suits first-time visitors…" }],
-  relatedSearches: ["hoi an hotels near old town", "hoi an romantic hotel"],
+  organic: [
+    { position: 1, title: "Where to Stay in Hoi An: Best Areas & Hotels (2026)", link: "https://travelguide.example/where-to-stay-hoi-an", snippet: "Old Town, Cam Thanh, An Bang Beach or Cua Dai: we compare location, price and romantic hotels near the Japanese Covered Bridge.", source: "travelguide.example" },
+    { position: 2, title: "10 Best Romantic Hotels in Hoi An for Couples", link: "https://www.booking.com/romantic/city/vn/hoi-an.html", snippet: "Riverbend Boutique Villa, Old Quarter Heritage Hotel and more couples' favourites with pool and river views.", source: "Booking.com" },
+    { position: 3, title: "THE 10 BEST Hoi An Hotels for Couples 2026 (Prices)", link: "https://www.tripadvisor.com/HotelsList-Hoi_An-Romantic", snippet: "Best romantic hotels in Hoi An · Riverbend Boutique Villa · Lantern House Hoi An · Old Quarter Heritage Hotel · prices from $45.", source: "Tripadvisor" },
+    { position: 4, title: "Honeymoon in Hoi An: where couples should stay", link: "https://honeymoon.example/hoi-an", snippet: "Choose the Old Town for evening walks under the lanterns, or An Bang Beach for sea views. Breakfast and pool matter most.", source: "honeymoon.example" },
+    { position: 5, title: "Best area to stay in Hoi An? : r/VietNam", link: "https://www.reddit.com/r/VietNam/comments/hoian", snippet: "Stay by the Thu Bon river if you want quiet nights and a short walk to the Old Town and the Night Market.", source: "Reddit · r/VietNam" },
+    { position: 6, title: "Hoi An hotels near the Old Town | Agoda", link: "https://www.agoda.com/hoi-an", snippet: "Compare hotel deals near the Japanese Covered Bridge and Hoi An Night Market. Free cancellation.", source: "Agoda" },
+  ],
+  questions: [
+    { question: "Is it better to stay in Hoi An old town or An Bang beach?", snippet: "The old town suits first-time visitors…" },
+    { question: "How far is Hoi An from Da Nang airport?" },
+    { question: "Is Hoi An good for families with kids?" },
+    { question: "What is the most romantic area of Hoi An?" },
+  ],
+  relatedSearches: ["hoi an hotels near old town", "hoi an romantic hotel", "hoi an hotel with airport transfer", "things to do in hoi an at night"],
   localPack: [{ position: 1, title: "Riverbend Boutique Villa", rating: 4.8, reviews: 1420 }, { position: 2, title: "Old Quarter Heritage Hotel", rating: 4.6, reviews: 980 }, { position: 3, title: "Lantern House Hoi An", rating: 4.7, reviews: 640 }],
   maps: [{ position: 1, title: "Riverbend Boutique Villa", rating: 4.8, reviews: 1420, type: "Hotel" }, { position: 2, title: "Lantern House Hoi An", rating: 4.7, reviews: 640, type: "Hotel" }],
   forums: [{ title: "Quiet area to stay in Hoi An?", link: "https://www.reddit.com/r/VietNam/", snippet: "Stay by the river, not next to the night market…", source: "Reddit · r/VietNam" }],
   reddit: [],
   booking: [],
   tripadvisor: [{ title: "Lantern House Hoi An", place_id: "0", rating: 4.5, reviews: 312 }],
-  reviews: [{ source: "Google", place: "Lantern House Hoi An", rating: 5, date: "2 weeks ago", text: "Loved the lantern workshop and the quiet riverside room." }],
+  reviews: [
+    { source: "Google", place: "Lantern House Hoi An", rating: 5, date: "2 weeks ago", text: "Loved the lantern workshop and the quiet riverside room. Staff were so friendly and the breakfast on the rooftop was delicious." },
+    { source: "Tripadvisor", place: "Lantern House Hoi An", rating: 4, date: "1 month ago", text: "Great location, a short walk to the Old Town. The bathroom was a bit small." },
+    { source: "Google", place: "Riverbend Boutique Villa", rating: 4, date: "3 weeks ago", text: "Beautiful pool and spacious villa. It is far from the Old Town and taxis are expensive." },
+    { source: "Tripadvisor", place: "Old Quarter Heritage Hotel", rating: 3, date: "2 months ago", text: "Central location but very noisy at night because of the Night Market. Breakfast was average." },
+  ],
   errors: [],
   serpapiCalls: 11,
 };
@@ -238,8 +278,11 @@ const visSummary = {
   },
 };
 
+const p1 = projects[0] as unknown as Project;
+const localRules = analyseSerp(p1, { ...localSources, query: localSources.query, reddit: localSources.reddit, reviews: localSources.reviews });
+
 const research_runs = [
-  { id: "e1000000-0000-4000-8000-000000000001", project_id: P1, kind: "local_context", query: "where to stay in hoi an for couples", params: { sources: ["google", "maps", "google_reviews", "forums", "reddit", "tripadvisor", "booking"] }, status: "done", sources: localSources, summary: localSummary, error: null, created_by: DEMO_USER.id, created_at: ago(7), completed_at: ago(7) },
+  { id: "e1000000-0000-4000-8000-000000000001", project_id: P1, kind: "local_context", query: "where to stay in hoi an for couples", params: { sources: ["google", "maps", "google_reviews", "forums", "reddit", "tripadvisor", "booking"], mode: "ai" }, status: "done", sources: localSources, summary: { rules: localRules, ai: localSummary }, error: null, created_by: DEMO_USER.id, created_at: ago(7), completed_at: ago(7) },
   { id: "e1000000-0000-4000-8000-000000000002", project_id: P1, kind: "ai_visibility", query: "best boutique hotel in Hoi An", params: { prompts: visSummary.per_prompt.map((p) => ({ prompt: p.prompt, angle: p.angle })), iterations: 5 }, status: "done", sources: { baseline: { maps: localSources.maps, localPack: localSources.localPack, errors: [] } }, summary: visSummary, error: null, created_by: DEMO_USER.id, created_at: ago(5), completed_at: ago(5) },
 ];
 
@@ -278,7 +321,31 @@ const opportunity_reports = [
   },
 ];
 
+// Rule-engine outputs, computed from the sample data.
+for (const d of content_drafts as Record<string, unknown>[]) {
+  if (d.project_id !== P1) continue;
+  d.optimisation = optimiseContent(p1, {
+    content: String(d.original_content),
+    keyword: d.target_keyword as string,
+    requiredEntities: localRules.topEntities.slice(0, 6).map((e) => e.name),
+    rules: feedback_logs.filter((f) => f.apply_as_rule).map((f) => f.content),
+  });
+}
+
+const content_briefs = [
+  {
+    id: "b1000000-0000-4000-8000-000000000001",
+    project_id: P1,
+    topic: "Where to stay in Hoi An for couples",
+    mode: "free",
+    brief: buildBrief(p1, "Where to stay in Hoi An for couples", localRules),
+    created_by: DEMO_USER.id,
+    created_at: ago(5),
+  },
+];
+
 export const FIXTURES: Record<string, Record<string, unknown>[]> = {
+  content_briefs,
   projects,
   documents,
   document_chunks: [],

@@ -2,6 +2,8 @@
 
 import {
   BookOpen,
+  FileText,
+  Settings,
   Check,
   ChevronsUpDown,
   FolderKanban,
@@ -24,16 +26,17 @@ type ProjectOption = { id: string; name: string };
 
 const PROJECT_NAV = [
   { href: "", label: "Overview", icon: LayoutDashboard },
-  { href: "/studio", label: "Content Studio", icon: PenLine },
-  { href: "/settings", label: "Brand & Foundations", icon: ShieldCheck },
+  { href: "/settings", label: "Brand Intelligence", icon: ShieldCheck },
   { href: "/documents", label: "Brand Library", icon: BookOpen },
-  { href: "/feedback", label: "Feedback Log", icon: MessageSquareText },
-  { href: "/research", label: "Local Research", icon: Telescope },
+  { href: "/feedback", label: "Feedback Intelligence", icon: MessageSquareText },
+  { href: "/research", label: "Market Research", icon: Telescope },
+  { href: "/opportunities", label: "SEO Opportunities", icon: Lightbulb },
+  { href: "/briefs", label: "Content Briefs", icon: FileText },
+  { href: "/studio", label: "Optimise", icon: PenLine },
   { href: "/visibility", label: "AI Visibility", icon: Radar },
-  { href: "/opportunities", label: "Opportunities", icon: Lightbulb },
 ];
 
-export function Sidebar({ projects, email, preview }: { projects: ProjectOption[]; email: string; preview: boolean }) {
+export function Sidebar({ projects, email, preview, aiEnabled }: { projects: ProjectOption[]; email: string; preview: boolean; aiEnabled: boolean }) {
   const pathname = usePathname();
   const projectId = pathname.match(/^\/projects\/([0-9a-f-]{36})/)?.[1];
   const current = projects.find((p) => p.id === projectId);
@@ -48,12 +51,17 @@ export function Sidebar({ projects, email, preview }: { projects: ProjectOption[
         </span>
       </Link>
 
-      <div className="px-3 pb-3">
+      <div className="space-y-2 px-3 pb-3">
         <ProjectSwitcher projects={projects} current={current} />
+        <Link href="/settings" className="flex items-center justify-between rounded-lg px-3 py-1.5 text-xs text-ink-500 hover:bg-ink-100">
+          <span>Mode</span>
+          <span className={aiEnabled ? "font-medium text-brand-800" : "font-medium text-teal-300"}>{aiEnabled ? "AI Enhanced" : "Free Intelligence"}</span>
+        </Link>
       </div>
 
       <nav className="flex gap-1 overflow-x-auto px-3 pb-3 md:flex-1 md:flex-col md:overflow-y-auto">
         <NavLink href="/" label="Dashboard" icon={FolderKanban} active={pathname === "/"} />
+        <NavLink href="/settings" label="Settings" icon={Settings} active={pathname === "/settings"} />
         {current && (
           <>
             <p className="hidden px-3 pt-4 pb-1 text-[11px] font-medium uppercase tracking-wider text-ink-400 md:block">{current.name}</p>

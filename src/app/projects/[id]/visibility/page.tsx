@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { VisibilityRunner } from "@/components/visibility";
 import { Badge, Card, Empty, SectionTitle, formatDate, pct } from "@/components/ui";
+import { AI_REQUIRED_MESSAGE, getAI } from "@/lib/ai";
 import { createClient } from "@/lib/supabase/server";
 import type { VisibilitySummary } from "@/lib/research/visibility";
 
 export default async function VisibilityPage({ params }: PageProps<"/projects/[id]/visibility">) {
   const { id } = await params;
   const supabase = await createClient();
+  const ai = await getAI(supabase);
   const { data: runs } = await supabase
     .from("research_runs")
     .select("id, query, status, summary, created_at, params")
@@ -21,9 +23,7 @@ export default async function VisibilityPage({ params }: PageProps<"/projects/[i
           title="AI Visibility"
           description="Which businesses does ChatGPT recommend, compared with Google Maps and the local pack? Runs each fan-out prompt several times with web search on."
         />
-        <Card>
-          <VisibilityRunner projectId={id} />
-        </Card>
+        <Card>{ai ? <VisibilityRunner projectId={id} /> : <p className="text-sm text-amber-300">{AI_REQUIRED_MESSAGE} AI Visibility asks ChatGPT the same questions travellers do, so it can&apos;t run in Free mode. Past checks stay viewable.</p>}</Card>
       </div>
       <div>
         <h3 className="mb-3 mt-1 text-sm font-semibold uppercase tracking-wide text-ink-500">Checks</h3>

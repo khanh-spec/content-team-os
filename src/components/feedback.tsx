@@ -213,3 +213,93 @@ export function FeedbackLog({ projectId, items, drafts }: { projectId: string; i
     </div>
   );
 }
+
+type ExtractedRule = { rule: string; kind: "rule" | "fact_correction"; category: string; source_quote: string };
+
+/** Paste raw client feedback → AI proposes reusable rules → save the ones you want. */
+export function FeedbackExtractor({ projectId, aiEnabled }: { projectId: string; aiEnabled: boolean }) {
+  const router = useRouter();
+  const [text, setText] = useState("");
+  const [rules, setRules] = useState<ExtractedRule[] | null>(null);
+  const [selected, setSelected] = useState<number[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(0);
+
+  async function extract() {
+    setBusy("extract");
+    setError(null);
+    setSaved(0);
+    try {
+      const res = await api<{ rules: ExtractedRule[] }>(`/api/projects/${projectId}/feedback/extract`, "POST", { text });
+      setRules(res.rules);
+      setSelected(res.rules.map((_, i) => i));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function save() {
+    if (!rules) return;
+    setBusy("save");
+    setError(null);
+    try {
+      for (const i of selected) {
+        const r = rules[i];
+        await api(`/api/projects/${projectId}/feedback`, "POST", { content: r.rule, context: r.source_quote, source: "client", kind: r.kind, apply_as_rule: true });
+      }
+      setSaved(selected.length);
+      setRules(null);
+      setText("");
+      router.refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <Card className={cn("space-y-3", !aiEnabled && "opacity-70")}>
+      <div>
+        <h3 className="font-semibold">Extract rules from feedback</h3>
+        <p className="text-sm text-ink-500">
+          {aiEnabled
+            ? "Paste client comments, revision notes or an email thread. AI turns them into reusable brand rules."
+            : "Needs AI Enhanced mode. In Free mode, log feedback below and tick “Apply to all future drafts” to turn it into a rule."}
+        </p>
+      </div>
+      <Textarea rows={4} disabled={!aiEnabled} value={text} onChange={(e) => setText(e.target.value)} placeholder="“Do not promote competitors. Keep the hotel as the main solution.”" />
+      <Button variant="secondary" disabled={!aiEnabled || text.trim().length < 10 || !!busy} onClick={extract}>
+        {busy === "extract" ? "Extracting…" : "Extract rules"}
+      </Button>
+      {rules && (
+        <div className="space-y-2">
+          {rules.length === 0 && <p className="text-sm text-ink-500">Nothing reusable found. Log it as one-off feedback instead.</p>}
+          {rules.map((r, i) => (
+            <label key={i} className="flex items-start gap-2 rounded-lg border border-ink-200 p-3 text-sm">
+              <input type="checkbox" className="mt-1" checked={selected.includes(i)} onChange={(e) => setSelected(e.target.checked ? [...selected, i] : selected.filter((x) => x !== i))} />
+              <span>
+                <span className="flex gap-1.5">
+                  <Badge tone={KIND_TONE[r.kind]}>{KIND_LABEL[r.kind]}</Badge>
+                  <Badge>{r.category}</Badge>
+                </span>
+                <span className="mt-1 block font-medium">{r.rule}</span>
+                <span className="block text-xs italic text-ink-500">From: “{r.source_quote}”</span>
+              </span>
+            </label>
+          ))}
+          {rules.length > 0 && (
+            <Button disabled={!selected.length || !!busy} onClick={save}>
+              {busy === "save" ? "Saving…" : `Save ${selected.length} rule${selected.length === 1 ? "" : "s"}`}
+            </Button>
+          )}
+        </div>
+      )}
+      {saved > 0 && <p className="text-sm text-emerald-400">Saved {saved} rule{saved === 1 ? "" : "s"}. They now apply to every check and rewrite.</p>}
+      <ErrorNote>{error}</ErrorNote>
+    </Card>
+  );
+}

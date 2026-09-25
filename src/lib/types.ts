@@ -1,6 +1,7 @@
 import type { DraftStatus } from "@/lib/pipeline";
 
 export type Competitor = { name: string; website?: string; aliases?: string[] };
+export type SitePage = { title: string; url: string; type?: string };
 
 export type Project = {
   id: string;
@@ -27,6 +28,12 @@ export type Project = {
   target_customers: string | null;
   competitors: Competitor[];
   notes: string | null;
+  products: string | null;
+  restricted_claims: string | null;
+  english_variant: string;
+  sentence_style: string | null;
+  cta_preference: string | null;
+  site_pages: SitePage[];
   created_at: string;
   updated_at: string;
 };
@@ -101,6 +108,7 @@ export type DraftRow = {
   original_content: string;
   revised_content: string | null;
   analysis: DraftAnalysis | null;
+  optimisation: import("@/lib/intel/optimise").OptimisationReport | null;
   research_run_ids: string[];
   status: DraftStatus;
   error: string | null;

@@ -1,7 +1,10 @@
 import { z } from "zod";
+import { getAI } from "@/lib/ai";
 import { handle, must, parseBody, requireUser } from "@/lib/api";
 import { loadProject } from "@/lib/context";
-import { LOCAL_SOURCES, collectLocalSources, synthesizeLocal, type LocalSourceId } from "@/lib/research/local";
+import { PREVIEW } from "@/lib/env";
+import { LOCAL_SOURCES, type LocalSourceId } from "@/lib/research/local";
+import { runLocalResearch } from "@/lib/research/run";
 
 export const maxDuration = 300;
 
@@ -17,24 +20,22 @@ export const POST = handle<Ctx>(async (req, ctx) => {
   const { id } = await ctx.params;
   const { supabase, user } = await requireUser();
   const { topic, sources } = await parseBody(req, Body);
-  const project = await loadProject(supabase, id);
+  const [project, ai] = await Promise.all([loadProject(supabase, id), getAI(supabase)]);
+  const params = { sources, mode: ai ? "ai" : "free" };
+
+  // Preview mode: nothing to save to, so return the finished run directly.
+  if (PREVIEW) {
+    const result = await runLocalResearch(ai, project, topic, sources);
+    const now = new Date().toISOString();
+    return { run: { id: "preview", project_id: id, kind: "local_context", query: topic, params, status: "done", ...result, error: null, created_at: now, completed_at: now } };
+  }
 
   const run = must(
-    await supabase
-      .from("research_runs")
-      .insert({ project_id: id, kind: "local_context", query: topic, params: { sources }, created_by: user.id })
-      .select("id")
-      .single(),
+    await supabase.from("research_runs").insert({ project_id: id, kind: "local_context", query: topic, params, created_by: user.id }).select("id").single(),
   );
-
   try {
-    const collected = await collectLocalSources(project, topic, sources);
-    await supabase.from("research_runs").update({ sources: collected }).eq("id", run.id);
-    const summary = await synthesizeLocal(project, topic, collected);
-    await supabase
-      .from("research_runs")
-      .update({ summary, status: "done", completed_at: new Date().toISOString() })
-      .eq("id", run.id);
+    const { sources: collected, summary } = await runLocalResearch(ai, project, topic, sources);
+    await supabase.from("research_runs").update({ sources: collected, summary, status: "done", completed_at: new Date().toISOString() }).eq("id", run.id);
     return { id: run.id };
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);

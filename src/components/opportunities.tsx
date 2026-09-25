@@ -6,6 +6,8 @@ import { useMemo, useState } from "react";
 import { api } from "@/lib/fetcher";
 import type { Opportunity, Pillar } from "@/lib/gsc/opportunities";
 import type { OpportunityReport } from "@/lib/gsc/report";
+import type { SerpInsight } from "@/lib/intel/serp";
+import { Gaps, Recommendations } from "@/components/insight";
 import { Badge, Button, Card, Empty, ErrorNote, Field, Input, Select, Spinner, Stat, cn, formatDate, pillarTone, severityTone } from "@/components/ui";
 
 const PILLAR_INFO: Record<Pillar, string> = {
@@ -37,6 +39,19 @@ export function Opportunities({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [period, setPeriod] = useState("Last 3 months");
+  const [plan, setPlan] = useState(report);
+  const [map, setMap] = useState<{ query: string; insight?: SerpInsight; loading: boolean; error?: string } | null>(null);
+  const [mapQuery, setMapQuery] = useState("");
+
+  async function analyse(query: string) {
+    setMap({ query, loading: true });
+    try {
+      const { insight } = await api<{ insight: SerpInsight }>(`/api/projects/${projectId}/serp-analysis`, "POST", { query });
+      setMap({ query, insight, loading: false });
+    } catch (e) {
+      setMap({ query, loading: false, error: (e as Error).message });
+    }
+  }
 
   const signals = useMemo(() => [...new Set(opportunities.flatMap((o) => o.signals))].sort(), [opportunities]);
   const filtered = opportunities.filter(
@@ -66,8 +81,9 @@ export function Opportunities({
     setBusy("report");
     setError(null);
     try {
-      await api(`/api/projects/${projectId}/opportunities`, "POST");
-      router.refresh();
+      const res = await api<{ id?: string; report?: { report: OpportunityReport; created_at: string } }>(`/api/projects/${projectId}/opportunities`, "POST");
+      if (res.report) setPlan(res.report);
+      else router.refresh();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -117,6 +133,28 @@ export function Opportunities({
 
       <ErrorNote>{error}</ErrorNote>
 
+      <Card className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h3 className="font-semibold">Search Opportunity Map</h3>
+            <p className="text-sm text-ink-500">What competitors cover for a query, what&apos;s missing, and what to create. Click “Map” on any query below, or type one.</p>
+          </div>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (mapQuery.trim()) analyse(mapQuery.trim());
+            }}
+            className="flex gap-2"
+          >
+            <Input value={mapQuery} onChange={(e) => setMapQuery(e.target.value)} placeholder="family hotel da nang" className="w-64" />
+            <Button variant="secondary" disabled={map?.loading}>
+              Analyse
+            </Button>
+          </form>
+        </div>
+        {map && <OpportunityMap projectId={projectId} state={map} />}
+      </Card>
+
       {opportunities.length === 0 ? (
         <Empty title="No Search Console data yet">Import a Queries CSV to see 3C content opportunities.</Empty>
       ) : (
@@ -140,14 +178,14 @@ export function Opportunities({
                   <>
                     <Spinner /> Building plan…
                   </>
-                ) : report ? (
+                ) : plan ? (
                   "Rebuild plan"
                 ) : (
                   "Build content plan"
                 )}
               </Button>
             </div>
-            {report && <ReportView projectId={projectId} data={report} />}
+            {plan && <ReportView projectId={projectId} data={plan} />}
           </Card>
 
           <Card className="p-0">
@@ -208,8 +246,11 @@ export function Opportunities({
                         </div>
                       </td>
                       <td className="px-4 py-2 text-right">
-                        <Link href={`/projects/${projectId}/studio?keyword=${encodeURIComponent(o.query)}`} className="text-xs font-medium text-brand-700 hover:underline">
-                          Draft
+                        <button onClick={() => analyse(o.query)} className="mr-3 text-xs font-medium text-brand-800 hover:underline">
+                          Map
+                        </button>
+                        <Link href={`/projects/${projectId}/briefs?topic=${encodeURIComponent(o.query)}`} className="text-xs font-medium text-brand-700 hover:underline">
+                          Brief
                         </Link>
                       </td>
                     </tr>
@@ -293,6 +334,60 @@ function ReportView({ projectId, data }: { projectId: string; data: { created_at
           </ul>
         </div>
       )}
+    </div>
+  );
+}
+
+function OpportunityMap({ projectId, state }: { projectId: string; state: { query: string; insight?: SerpInsight; loading: boolean; error?: string } }) {
+  if (state.loading)
+    return (
+      <p className="flex items-center gap-2 text-sm text-ink-500">
+        <Spinner /> Analysing “{state.query}”…
+      </p>
+    );
+  if (state.error) return <ErrorNote>{state.error}</ErrorNote>;
+  const s = state.insight;
+  if (!s) return null;
+  return (
+    <div className="grid gap-5 rounded-lg border border-ink-200 p-4 lg:grid-cols-3">
+      <div className="space-y-3 text-sm">
+        <div>
+          <p className="text-xs uppercase tracking-wide text-ink-500">Query</p>
+          <p className="font-medium">{s.query}</p>
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-wide text-ink-500">Intent</p>
+          <p className="font-medium">{s.intent.label}</p>
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-wide text-ink-500">Your brand</p>
+          <p>
+            Organic {s.brandPresence.organic ? `#${s.brandPresence.organic}` : "—"} · Local pack {s.brandPresence.localPack ? `#${s.brandPresence.localPack}` : "—"}
+          </p>
+        </div>
+        <Link href={`/projects/${projectId}/briefs?topic=${encodeURIComponent(s.query)}`} className="inline-block text-sm font-medium text-brand-800 hover:underline">
+          Create a brief for this query →
+        </Link>
+      </div>
+      <div className="text-sm">
+        <p className="mb-2 text-xs uppercase tracking-wide text-ink-500">SERP coverage: competitors mention</p>
+        <ul className="space-y-1">
+          {s.competitorAngles.map((a) => (
+            <li key={a.topic}>
+              <span className="text-emerald-400">✓</span> {a.label} <span className="text-xs text-ink-500">({Math.round(a.coverage * 100)}%)</span>
+            </li>
+          ))}
+          {!s.competitorAngles.length && <li className="text-ink-500">No shared angle.</li>}
+        </ul>
+      </div>
+      <div className="text-sm">
+        <p className="mb-2 text-xs uppercase tracking-wide text-ink-500">Missing</p>
+        <Gaps items={s.missingOpportunities.slice(0, 4)} />
+      </div>
+      <div className="lg:col-span-3">
+        <p className="mb-2 text-xs uppercase tracking-wide text-ink-500">Recommendation</p>
+        <Recommendations items={s.recommendations.slice(0, 4)} />
+      </div>
     </div>
   );
 }

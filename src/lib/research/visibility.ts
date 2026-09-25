@@ -2,8 +2,7 @@ import "server-only";
 
 import { z } from "zod";
 import { zodTextFormat } from "openai/helpers/zod";
-import { MODELS } from "@/lib/env";
-import { openai } from "@/lib/openai";
+import type { AI } from "@/lib/ai";
 import { googleMaps, googleSearch, localize, normalizeName, sameBusiness, type LocalBusiness } from "@/lib/serpapi";
 import type { Project } from "@/lib/types";
 
@@ -31,10 +30,10 @@ export type SerpBaseline = {
   errors: string[];
 };
 
-export async function generateFanout(project: Project, seed: string, count: number) {
+export async function generateFanout(ai: AI, project: Project, seed: string, count: number) {
   const location = [project.city, project.region, project.country].filter(Boolean).join(", ");
-  const res = await openai().responses.parse({
-    model: MODELS.fast,
+  const res = await ai.client.responses.parse({
+    model: ai.fast,
     instructions:
       "You generate query fan-outs to measure which local businesses ChatGPT recommends. " +
       "Write prompts exactly the way real travellers phrase them in ChatGPT: natural, specific, " +
@@ -95,9 +94,9 @@ function domainOf(url: string) {
   }
 }
 
-export async function runChatGptSample(project: Project, prompt: string) {
-  const response = await openai().responses.create({
-    model: MODELS.chatgpt,
+export async function runChatGptSample(ai: AI, project: Project, prompt: string) {
+  const response = await ai.client.responses.create({
+    model: ai.model,
     input: prompt,
     tools: [
       {
@@ -128,8 +127,8 @@ export async function runChatGptSample(project: Project, prompt: string) {
   }
 
   const known = [project.brand_name, ...project.brand_aliases, ...(project.competitors ?? []).map((c) => c.name)];
-  const extraction = await openai().responses.parse({
-    model: MODELS.fast,
+  const extraction = await ai.client.responses.parse({
+    model: ai.fast,
     instructions:
       "Extract every distinct local business (hotel, resort, restaurant, venue, tour operator, etc.) recommended or named in the answer, in order of first appearance. " +
       "Exclude websites/publishers (e.g. Tripadvisor, Booking.com), neighbourhoods and landmarks. " +
@@ -326,7 +325,7 @@ const InsightsSchema = z.object({
 });
 export type VisibilityInsights = z.infer<typeof InsightsSchema>;
 
-export async function visibilityInsights(project: Project, seed: string, summary: VisibilitySummary): Promise<VisibilityInsights | undefined> {
+export async function visibilityInsights(ai: AI, project: Project, seed: string, summary: VisibilitySummary): Promise<VisibilityInsights | undefined> {
   const compact = {
     seed,
     brand: summary.brand,
@@ -335,8 +334,8 @@ export async function visibilityInsights(project: Project, seed: string, summary
     citation_domains: summary.citation_domains.slice(0, 15),
     per_prompt: summary.per_prompt,
   };
-  const res = await openai().responses.parse({
-    model: MODELS.fast,
+  const res = await ai.client.responses.parse({
+    model: ai.fast,
     instructions:
       "You are a GEO (generative engine optimisation) strategist for hospitality brands. " +
       "Compare ChatGPT recommendation share with Google Maps / local pack rank. " +

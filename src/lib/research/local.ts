@@ -2,8 +2,7 @@ import "server-only";
 
 import { z } from "zod";
 import { zodTextFormat } from "openai/helpers/zod";
-import { MODELS } from "@/lib/env";
-import { openai } from "@/lib/openai";
+import type { AI } from "@/lib/ai";
 import { brandProfile } from "@/lib/context";
 import {
   googleForums,
@@ -42,6 +41,7 @@ export type LocalSources = {
   questions: Question[];
   relatedSearches: string[];
   aiOverview?: string;
+  answerBox?: { title?: string; snippet?: string } | null;
   localPack: LocalBusiness[];
   maps: LocalBusiness[];
   forums: ForumPost[];
@@ -182,6 +182,7 @@ export async function collectLocalSources(
     questions: google?.questions ?? [],
     relatedSearches: google?.relatedSearches ?? [],
     aiOverview: google?.aiOverview,
+    answerBox: google?.answerBox ?? null,
     localPack: google?.localPack ?? [],
     maps,
     forums: [...forums, ...(google?.discussions ?? [])],
@@ -213,9 +214,9 @@ function sourcesDigest(s: LocalSources): string {
   return lines.join("\n\n").slice(0, 60_000);
 }
 
-export async function synthesizeLocal(project: Project, topic: string, sources: LocalSources): Promise<LocalSummary> {
-  const response = await openai().responses.parse({
-    model: MODELS.writer,
+export async function synthesizeLocal(ai: AI, project: Project, topic: string, sources: LocalSources): Promise<LocalSummary> {
+  const response = await ai.client.responses.parse({
+    model: ai.model,
     instructions:
       "You are a local-market research analyst for a hospitality SEO/GEO agency. " +
       "Work only from the supplied source data; never invent reviews, facts or rankings. " +

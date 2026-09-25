@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LocalResearchForm } from "@/components/research";
+import { ResearchWorkspace } from "@/components/research";
 import { Badge, Card, Empty, SectionTitle, formatDate } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
 import { LOCAL_SOURCES } from "@/lib/research/local";
@@ -13,14 +13,12 @@ export default async function ResearchPage({ params }: PageProps<"/projects/[id]
   ]);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
-      <div>
-        <SectionTitle title="Local Context Research" description="Live customer questions, reviews and forum talk for the destination." />
-        <Card>
-          <LocalResearchForm projectId={id} sources={LOCAL_SOURCES.map((s) => ({ id: s.id, label: s.label }))} location={project?.serp_location || [project?.city, project?.country].filter(Boolean).join(", ")} />
-        </Card>
-      </div>
-      <div>
+    <div>
+      <SectionTitle
+        title="Market Research"
+        description="Search intent, entities, competitor angles, customer questions and review themes for any topic, from Google, Maps, Reddit, forums, Tripadvisor and Booking. Works in Free mode; AI mode adds a written synthesis."
+      />
+      <ResearchWorkspace projectId={id} sources={LOCAL_SOURCES.map((s) => ({ id: s.id, label: s.label }))} location={project?.serp_location || [project?.city, project?.country].filter(Boolean).join(", ")}>
         <h3 className="mb-3 mt-1 text-sm font-semibold uppercase tracking-wide text-ink-500">Research runs</h3>
         {runs?.length ? (
           <Card className="divide-y divide-ink-100 p-0">
@@ -37,7 +35,7 @@ export default async function ResearchPage({ params }: PageProps<"/projects/[id]
         ) : (
           <Empty title="No research yet">Try a topic like “romantic things to do in Hoi An” or “where to stay in Hoi An with kids”.</Empty>
         )}
-      </div>
+      </ResearchWorkspace>
     </div>
   );
 }

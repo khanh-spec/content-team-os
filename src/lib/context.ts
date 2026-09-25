@@ -3,7 +3,7 @@ import "server-only";
 import type { Supabase } from "@/lib/api";
 import { HttpError } from "@/lib/api";
 import { chunkText } from "@/lib/extract";
-import { embed } from "@/lib/openai";
+import { embed, type AI } from "@/lib/ai";
 import type { FeedbackRow, Project } from "@/lib/types";
 
 export async function loadProject(supabase: Supabase, id: string): Promise<Project> {
@@ -61,12 +61,27 @@ export function rulesBlock(rules: FeedbackRow[]): string {
 
 export type RetrievedChunk = { document_id: string; title: string; category: string; content: string; similarity: number };
 
+const STOP = new Set("the a an and or of to in on for with at by from is are was were be this that it as our your we you they their its".split(" "));
+
+/** OR-joined tsquery of the distinctive words in the queries (free-mode fallback). */
+function toTsQuery(queries: string[]) {
+  const words = queries
+    .join(" ")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .match(/[a-z0-9]{3,}/g) ?? [];
+  return [...new Set(words.filter((w) => !STOP.has(w)))].slice(0, 30).join(" | ");
+}
+
 /**
- * Retrieve the most relevant passages from the project's documents for the
- * given text. Several queries (e.g. per paragraph) are merged and de-duplicated.
+ * Retrieve the most relevant passages from the project's documents. Uses
+ * embeddings in AI mode and Postgres full-text search in free mode (or for
+ * documents indexed without embeddings).
  */
 export async function retrieve(
   supabase: Supabase,
+  ai: AI | null,
   projectId: string,
   queries: string[],
   perQuery = 6,
@@ -74,19 +89,32 @@ export async function retrieve(
 ): Promise<RetrievedChunk[]> {
   const qs = queries.map((q) => q.trim()).filter(Boolean).slice(0, 8);
   if (!qs.length) return [];
-  const vectors = await embed(qs);
   const seen = new Map<string, RetrievedChunk>();
-  for (const v of vectors) {
-    const { data, error } = await supabase.rpc("match_document_chunks", {
-      p_project_id: projectId,
-      query_embedding: v as unknown as string,
-      match_count: perQuery,
-    });
-    if (error) throw new Error(`Retrieval failed: ${error.message}`);
-    for (const row of (data ?? []) as (RetrievedChunk & { id: number })[]) {
+  const add = (rows: (RetrievedChunk & { id: number })[]) => {
+    for (const row of rows) {
       const key = String(row.id);
       const prev = seen.get(key);
       if (!prev || prev.similarity < row.similarity) seen.set(key, row);
+    }
+  };
+
+  if (ai) {
+    const vectors = await embed(ai, qs);
+    for (const v of vectors) {
+      const { data, error } = await supabase.rpc("match_document_chunks", {
+        p_project_id: projectId,
+        query_embedding: v as unknown as string,
+        match_count: perQuery,
+      });
+      if (error) throw new Error(`Retrieval failed: ${error.message}`);
+      add((data ?? []) as (RetrievedChunk & { id: number })[]);
+    }
+  }
+  if (seen.size < maxTotal / 2) {
+    const q = toTsQuery(qs);
+    if (q) {
+      const { data } = await supabase.rpc("search_document_chunks", { p_project_id: projectId, q, match_count: maxTotal });
+      add(((data ?? []) as (RetrievedChunk & { id: number })[]).map((r) => ({ ...r, similarity: Math.min(0.5, r.similarity) })));
     }
   }
   return [...seen.values()].sort((a, b) => b.similarity - a.similarity).slice(0, maxTotal);
@@ -100,17 +128,18 @@ export function chunksBlock(chunks: RetrievedChunk[]): string {
 }
 
 /** Chunk + embed a document's text and mark it ready. */
-export async function indexDocument(supabase: Supabase, doc: { id: string; project_id: string }, text: string) {
+export async function indexDocument(supabase: Supabase, ai: AI | null, doc: { id: string; project_id: string }, text: string) {
   await supabase.from("document_chunks").delete().eq("document_id", doc.id);
   const chunks = chunkText(text);
   if (chunks.length) {
-    const vectors = await embed(chunks);
+    // Embeddings only in AI mode; free mode relies on full-text search.
+    const vectors = ai ? await embed(ai, chunks).catch(() => null) : null;
     const rows = chunks.map((content, i) => ({
       document_id: doc.id,
       project_id: doc.project_id,
       chunk_index: i,
       content,
-      embedding: vectors[i] as unknown as string,
+      embedding: (vectors?.[i] ?? null) as unknown as string,
     }));
     for (let i = 0; i < rows.length; i += 100) {
       const { error } = await supabase.from("document_chunks").insert(rows.slice(i, i + 100));

@@ -3,34 +3,61 @@ import { Badge, StatusBadge, ButtonLink, Card, Stat, formatDate, pct } from "@/c
 import { createClient } from "@/lib/supabase/server";
 import type { VisibilitySummary } from "@/lib/research/visibility";
 import type { Project } from "@/lib/types";
+import { KnowledgeScoreCard } from "@/components/knowledge-score";
+import { knowledgeScore } from "@/lib/intel/knowledge";
 
 export default async function ProjectOverview({ params }: PageProps<"/projects/[id]">) {
   const { id } = await params;
   const supabase = await createClient();
-  const [{ data: p }, docs, drafts, feedback, runs] = await Promise.all([
+  const [{ data: p }, docs, drafts, feedback, runs, briefs, gsc, rules, allDrafts] = await Promise.all([
     supabase.from("projects").select("*").eq("id", id).single(),
     supabase.from("documents").select("id", { count: "exact", head: true }).eq("project_id", id),
     supabase.from("content_drafts").select("id, title, status, updated_at").eq("project_id", id).order("updated_at", { ascending: false }).limit(5),
     supabase.from("feedback_logs").select("id, content, kind, source, created_at").eq("project_id", id).eq("status", "open").order("created_at", { ascending: false }).limit(5),
     supabase.from("research_runs").select("id, kind, query, status, summary, created_at").eq("project_id", id).order("created_at", { ascending: false }).limit(6),
+    supabase.from("content_briefs").select("id", { count: "exact", head: true }).eq("project_id", id),
+    supabase.from("gsc_queries").select("id", { count: "exact", head: true }).eq("project_id", id),
+    supabase.from("feedback_logs").select("id", { count: "exact", head: true }).eq("project_id", id).eq("apply_as_rule", true),
+    supabase.from("content_drafts").select("optimisation").eq("project_id", id),
   ]);
   const project = p as Project;
   const latestVis = runs.data?.find((r) => r.kind === "ai_visibility" && r.status === "done");
   const vis = latestVis?.summary as VisibilitySummary | undefined;
 
-  const checks: { pillar: string; label: string; ok: boolean }[] = [
-    { pillar: "Company", label: "Verified brand facts", ok: !!project.brand_facts?.trim() },
-    { pillar: "Company", label: "Tone of voice", ok: !!project.tone_of_voice?.trim() },
-    { pillar: "Company", label: "Brand documents uploaded", ok: (docs.count ?? 0) > 0 },
-    { pillar: "Customers", label: "Target guests described", ok: !!project.target_customers?.trim() },
-    { pillar: "Customers", label: "Local research run", ok: !!runs.data?.some((r) => r.kind === "local_context" && r.status === "done") },
-    { pillar: "Competitors", label: "Competitors listed", ok: (project.competitors ?? []).length > 0 },
-    { pillar: "Competitors", label: "AI visibility checked", ok: !!vis },
-    { pillar: "Local", label: "Search location set", ok: !!(project.serp_location || project.city) && !!project.country_code },
+  const researchCount = runs.data?.length ?? 0;
+  const ks = knowledgeScore(project, { documents: docs.count ?? 0, rules: rules.count ?? 0, research: researchCount });
+  const scores = (allDrafts.data ?? []).map((d) => (d.optimisation as { overall?: number } | null)?.overall).filter((n): n is number => typeof n === "number");
+  const avgScore = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
+  const base = `/projects/${id}`;
+  const steps = [
+    { label: "Brand understanding", detail: `Knowledge score ${ks.score}%`, done: ks.score >= 60, href: `${base}/settings` },
+    { label: "Customer understanding", detail: runs.data?.some((r) => r.kind === "local_context") ? "Market research done" : "Run market research", done: !!runs.data?.some((r) => r.kind === "local_context"), href: `${base}/research` },
+    { label: "Competitor understanding", detail: `${(project.competitors ?? []).length} competitors${vis ? " · AI visibility checked" : ""}`, done: (project.competitors ?? []).length >= 2, href: `${base}/visibility` },
+    { label: "Search intelligence", detail: gsc.count ? `${gsc.count} GSC queries` : "Import Search Console", done: (gsc.count ?? 0) > 0, href: `${base}/opportunities` },
+    { label: "Content strategy", detail: `${briefs.count ?? 0} briefs`, done: (briefs.count ?? 0) > 0, href: `${base}/briefs` },
+    { label: "Content creation", detail: `${allDrafts.data?.length ?? 0} drafts`, done: (allDrafts.data?.length ?? 0) > 0, href: `${base}/studio` },
+    { label: "Quality validation", detail: avgScore != null ? `Avg. score ${avgScore}` : "No checked drafts", done: avgScore != null && avgScore >= 70, href: `${base}/studio` },
+    { label: "Feedback learning", detail: `${rules.count ?? 0} rules`, done: (rules.count ?? 0) > 0, href: `${base}/feedback` },
   ];
-  const done = checks.filter((c) => c.ok).length;
 
   return (
+    <div className="space-y-6">
+      <Card>
+        <h3 className="mb-4 font-semibold">Workflow</h3>
+        <ol className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          {steps.map((st, i) => (
+            <li key={st.label}>
+              <Link href={st.href} className="flex items-start gap-3 rounded-lg border border-ink-200 p-3 hover:border-brand-300 hover:bg-surface-2">
+                <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-semibold ${st.done ? "bg-emerald-500 text-ink-50" : "bg-ink-100 text-ink-600 ring-1 ring-ink-300"}`}>{st.done ? "✓" : i + 1}</span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium">{st.label}</span>
+                  <span className="block truncate text-xs text-ink-500">{st.detail}</span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ol>
+      </Card>
     <div className="grid gap-6 lg:grid-cols-3">
       <div className="space-y-6 lg:col-span-2">
         <div className="grid gap-4 sm:grid-cols-4">
@@ -89,27 +116,7 @@ export default async function ProjectOverview({ params }: PageProps<"/projects/[
       </div>
 
       <div className="space-y-6">
-        <Card>
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="font-semibold">3C readiness</h3>
-            <span className="text-sm text-ink-500">
-              {done}/{checks.length}
-            </span>
-          </div>
-          <div className="mb-4 h-2 overflow-hidden rounded-full bg-ink-100">
-            <div className="h-full bg-brand-600" style={{ width: `${(done / checks.length) * 100}%` }} />
-          </div>
-          <ul className="space-y-2 text-sm">
-            {checks.map((c) => (
-              <li key={c.label} className="flex items-center gap-2">
-                <span className={c.ok ? "text-emerald-400" : "text-ink-300"}>{c.ok ? "●" : "○"}</span>
-                <span className="w-24 shrink-0 text-xs text-ink-500">{c.pillar}</span>
-                <span className={c.ok ? "text-ink-800" : "text-ink-500"}>{c.label}</span>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-4 text-xs text-ink-500">The writer only uses facts it can find in the profile, documents, feedback rules and research, so more complete data means better rewrites.</p>
-        </Card>
+        <KnowledgeScoreCard score={ks.score} items={ks.items} compact />
 
         <Card>
           <div className="mb-3 flex items-center justify-between">
@@ -134,6 +141,7 @@ export default async function ProjectOverview({ params }: PageProps<"/projects/[
           )}
         </Card>
       </div>
+    </div>
     </div>
   );
 }

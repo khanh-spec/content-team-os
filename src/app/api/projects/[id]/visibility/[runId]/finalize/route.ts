@@ -1,4 +1,5 @@
 import { handle, must, requireUser } from "@/lib/api";
+import { getAI } from "@/lib/ai";
 import { loadProject } from "@/lib/context";
 import { aggregate, visibilityInsights, type Sample, type SerpBaseline, type VisibilityPlan } from "@/lib/research/visibility";
 
@@ -22,7 +23,8 @@ export const POST = handle<Ctx>(async (_req, ctx) => {
   const plan = run.params as VisibilityPlan;
   const baseline = (run.sources as { baseline: SerpBaseline }).baseline;
   const summary = aggregate(project, plan, baseline, samples as Sample[]);
-  summary.insights = await visibilityInsights(project, run.query, summary).catch(() => undefined);
+  const ai = await getAI(supabase);
+  summary.insights = ai ? await visibilityInsights(ai, project, run.query, summary).catch(() => undefined) : undefined;
 
   const { error } = await supabase
     .from("research_runs")

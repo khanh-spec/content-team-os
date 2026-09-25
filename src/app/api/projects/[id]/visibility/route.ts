@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { handle, must, parseBody, requireUser } from "@/lib/api";
+import { requireAI } from "@/lib/ai";
 import { loadProject } from "@/lib/context";
 import { generateFanout, serpBaseline, type VisibilityPlan } from "@/lib/research/visibility";
 
@@ -18,9 +19,10 @@ export const POST = handle<Ctx>(async (req, ctx) => {
   const { id } = await ctx.params;
   const { supabase, user } = await requireUser();
   const { seed, prompts, iterations } = await parseBody(req, Body);
+  const ai = await requireAI(supabase);
   const project = await loadProject(supabase, id);
 
-  const [fanout, baseline] = await Promise.all([generateFanout(project, seed, prompts), serpBaseline(project, seed)]);
+  const [fanout, baseline] = await Promise.all([generateFanout(ai, project, seed, prompts), serpBaseline(project, seed)]);
   const plan: VisibilityPlan = { prompts: fanout, iterations };
 
   const run = must(

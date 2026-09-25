@@ -32,6 +32,12 @@ export const ProjectInputSchema = z.object({
   target_customers: text,
   competitors: z.array(CompetitorSchema).default([]),
   notes: text,
+  products: text,
+  restricted_claims: text,
+  english_variant: z.string().trim().default("British English"),
+  sentence_style: text,
+  cta_preference: text,
+  site_pages: z.array(z.object({ title: z.string().trim().min(1), url: z.string().trim().min(1), type: z.string().trim().optional() })).default([]),
 });
 
 export type ProjectInput = z.infer<typeof ProjectInputSchema>;

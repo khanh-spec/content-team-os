@@ -4,8 +4,7 @@ import { z } from "zod";
 import { zodTextFormat } from "openai/helpers/zod";
 import type { Supabase } from "@/lib/api";
 import { brandProfile, chunksBlock, loadRules, retrieve, rulesBlock } from "@/lib/context";
-import { MODELS } from "@/lib/env";
-import { openai } from "@/lib/openai";
+import type { AI } from "@/lib/ai";
 import type { LocalSummary } from "@/lib/research/local";
 import type { VisibilitySummary } from "@/lib/research/visibility";
 import type { DraftAnalysis, Project, ResearchRun } from "@/lib/types";
@@ -84,9 +83,9 @@ function researchBlock(runs: ResearchRun[]): string {
 }
 
 /** Web-search pass that verifies claims about the brand, competitors and area. */
-async function liveFactCheck(project: Project, content: string): Promise<string> {
-  const res = await openai().responses.create({
-    model: MODELS.writer,
+async function liveFactCheck(ai: AI, project: Project, content: string): Promise<string> {
+  const res = await ai.client.responses.create({
+    model: ai.model,
     tools: [{ type: "web_search", user_location: { type: "approximate", city: project.city || undefined, country: project.country_code?.toUpperCase() || undefined } }],
     instructions:
       "You are a meticulous fact-checker. List every checkable factual claim in the draft about the brand, named competitors, " +
@@ -99,6 +98,7 @@ async function liveFactCheck(project: Project, content: string): Promise<string>
 }
 
 export async function rewriteDraft(
+  ai: AI,
   supabase: Supabase,
   project: Project,
   input: RewriteInput,
@@ -114,9 +114,9 @@ export async function rewriteDraft(
   ];
 
   const [chunks, rules, webCheck] = await Promise.all([
-    retrieve(supabase, project.id, queries),
+    retrieve(supabase, ai, project.id, queries),
     loadRules(supabase, project.id),
-    input.live_check ? liveFactCheck(project, input.original_content).catch((e: Error) => `Web check failed: ${e.message}`) : Promise.resolve(""),
+    input.live_check ? liveFactCheck(ai, project, input.original_content).catch((e: Error) => `Web check failed: ${e.message}`) : Promise.resolve(""),
   ]);
 
   const prompt = [
@@ -135,8 +135,8 @@ export async function rewriteDraft(
     .filter(Boolean)
     .join("\n\n");
 
-  const res = await openai().responses.parse({
-    model: MODELS.writer,
+  const res = await ai.client.responses.parse({
+    model: ai.model,
     instructions:
       `You are the brand-specific senior editor for ${project.brand_name}, a ${project.property_type ?? project.industry.toLowerCase()} in ${project.city ?? "its destination"}. ` +
       "You know the brand (Company), its guests (Customers) and its market (Competitors). " +

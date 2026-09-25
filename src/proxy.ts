@@ -5,11 +5,18 @@ import { PREVIEW, SUPABASE_KEY, SUPABASE_URL, isEmailAllowed } from "@/lib/env";
 
 const PUBLIC_PATHS = ["/login", "/auth"];
 
+// In preview these run live (SerpApi / OpenAI) and return results without saving.
+const PREVIEW_ALLOWED = [
+  /^\/api\/settings$/,
+  /^\/api\/projects\/[^/]+\/(research|briefs|drafts|serp-analysis|opportunities|extract|feedback\/extract)$/,
+];
+
 export async function proxy(request: NextRequest) {
   // Preview mode (no Supabase): browse the sample workspace, but block every
   // write so nothing pretends to save and no API credits are spent.
   if (PREVIEW) {
-    if (request.nextUrl.pathname.startsWith("/api/") && request.method !== "GET") {
+    const path = request.nextUrl.pathname;
+    if (path.startsWith("/api/") && request.method !== "GET" && !PREVIEW_ALLOWED.some((re) => re.test(path))) {
       return NextResponse.json({ error: PREVIEW_MESSAGE }, { status: 403 });
     }
     return NextResponse.next();

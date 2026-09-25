@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { HttpError, handle, must, parseBody, requireUser } from "@/lib/api";
+import { getAI } from "@/lib/ai";
 import { indexDocument } from "@/lib/context";
 import { extractText } from "@/lib/extract";
 
@@ -61,7 +62,7 @@ export const POST = handle<Ctx>(async (req, ctx) => {
       text = await extractText(Buffer.from(await blob.arrayBuffer()), body.filename, body.mime_type);
     }
     if (!text) throw new Error("No readable text found in this file (scanned PDFs need OCR first).");
-    const chunks = await indexDocument(supabase, doc, text);
+    const chunks = await indexDocument(supabase, await getAI(supabase), doc, text);
     return { id: doc.id, chunks };
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);

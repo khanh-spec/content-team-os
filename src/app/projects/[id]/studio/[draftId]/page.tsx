@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { DraftView } from "@/components/draft-view";
+import { getAI } from "@/lib/ai";
 import { createClient } from "@/lib/supabase/server";
 import type { DraftRow, FeedbackRow } from "@/lib/types";
 
@@ -12,5 +13,6 @@ export default async function DraftPage({ params }: PageProps<"/projects/[id]/st
     supabase.from("research_runs").select("id, kind, query, created_at").eq("project_id", id).eq("status", "done").order("created_at", { ascending: false }).limit(20),
   ]);
   if (!draft) notFound();
-  return <DraftView projectId={id} draft={draft as DraftRow} feedback={(feedback ?? []) as FeedbackRow[]} runs={runs ?? []} />;
+  const ai = await getAI(supabase);
+  return <DraftView projectId={id} draft={draft as DraftRow} feedback={(feedback ?? []) as FeedbackRow[]} runs={runs ?? []} aiEnabled={!!ai} />;
 }

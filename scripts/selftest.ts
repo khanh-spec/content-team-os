@@ -89,3 +89,121 @@ function pdf() {
   assert(s.citation_domains.find((d) => d.domain === "aniohotel.com")?.kind === "brand site" && s.citation_domains.find((d) => d.domain === "booking.com")?.kind === "OTA", "citation domains classified");
   assert(s.per_prompt[0].brand_rate === 0.5 && s.per_prompt[1].brand_rate === 1, "per-prompt brand rate");
 })();
+
+// ---------------------------------------------------------------------------
+// Rules engine (Free Intelligence mode)
+// ---------------------------------------------------------------------------
+import { readFileSync } from "node:fs";
+import { classifyIntent } from "../src/lib/intel/intent";
+import { analyseSerp, type SerpInput } from "../src/lib/intel/serp";
+import { buildBrief } from "../src/lib/intel/brief";
+import { optimiseContent, claimPhrase, bannedFromRules } from "../src/lib/intel/optimise";
+import { reviewThemes } from "../src/lib/intel/reviews";
+import { collectQuestions } from "../src/lib/intel/questions";
+import { freeOpportunityReport } from "../src/lib/intel/plan";
+import { knowledgeScore } from "../src/lib/intel/knowledge";
+
+(async () => {
+  const ok = (c: unknown, m: string) => { if (!c) { console.error("FAIL:", m); process.exitCode = 1; } else console.log("ok:", m); };
+
+  ok(classifyIntent("best hotels in Adelaide CBD").primary === "Commercial investigation", "intent: best hotels → commercial investigation");
+  ok(classifyIntent("best things to do in Adelaide").label === "Commercial + Informational", `intent label combines (${classifyIntent("best things to do in Adelaide").label})`);
+  ok(classifyIntent("book hotel indigo adelaide", ["Hotel Indigo Adelaide"]).all.includes("Navigational"), "intent: brand name → navigational");
+  ok(classifyIntent("hotels near adelaide oval").all.includes("Local"), "intent: near → local");
+
+  const indigo = {
+    brand_name: "Hotel Indigo Adelaide", brand_aliases: ["Hotel Indigo"], city: "Adelaide", region: "South Australia", country: "Australia", country_code: "au",
+    industry: "Hospitality", property_type: "Boutique hotel", website: "https://www.ihg.com/hotelindigo/adelaide",
+    brand_facts: "142 rooms\n5-minute walk to Adelaide Central Market\nRooftop bar with city views\nOn-site parking available", usps: "Next to Adelaide Central Market\nRooftop bar", products: "Rooms, rooftop bar, restaurant",
+    restricted_claims: "Cannot claim Michelin-starred\nCannot claim private beach", words_to_avoid: "world-class, hidden gem, unforgettable", words_to_use: "thoughtfully designed, local experience",
+    target_customers: "Families visiting Adelaide; couples on weekend breaks; business travellers", cta_preference: "Check availability", english_variant: "British English",
+    competitors: [{ name: "Mayfair Hotel" }, { name: "The Playford Adelaide" }], site_pages: [{ title: "Rooms & Suites", url: "https://www.ihg.com/hotelindigo/adelaide/rooms" }, { title: "Rooftop bar", url: "https://www.ihg.com/hotelindigo/adelaide/bar" }, { title: "Parking & getting here", url: "https://www.ihg.com/hotelindigo/adelaide/parking" }],
+  } as unknown as Project;
+
+  const raw = JSON.parse(readFileSync(new URL("./fixtures/adelaide-serp.json", import.meta.url), "utf8"));
+  const serp = analyseSerp(indigo, { query: "best hotels in Adelaide CBD", ...raw } as SerpInput);
+  ok(serp.intent.primary === "Commercial investigation", "SERP: intent");
+  ok(serp.serpFeatures.includes("People Also Ask") && serp.serpFeatures.includes("Related searches"), `SERP features (${serp.serpFeatures.join(", ")})`);
+  const ents = serp.topEntities.map((e) => e.name);
+  ok(ents.some((e) => /Mayfair/.test(e)) && ents.some((e) => /Playford/.test(e)), `entities include Mayfair & Playford (${ents.join(", ")})`);
+  ok(!ents.includes("Adelaide") && !ents.some((e) => /^(Best|Top|Hotels?)$/i.test(e)), "entities exclude the city and generic words");
+  ok(serp.contentFormats.some((f) => f.format === "OTA listing") && serp.contentFormats.some((f) => f.format === "Listicle"), `formats (${serp.contentFormats.map((f) => f.format).join(", ")})`);
+  const gapIds = serp.missingOpportunities.map((g) => g.topic);
+  ok(gapIds.includes("family") && gapIds.includes("itinerary") && gapIds.includes("transport"), `missing opportunities: family/itinerary/transport (${gapIds.join(", ")})`);
+  ok(gapIds.includes("parking") || gapIds.includes("breakfast"), "gaps from related searches (parking/breakfast)");
+  ok(serp.missingOpportunities.find((g) => g.topic === "parking")?.brandCanAnswer === true, "gap flags that brand facts cover parking");
+  ok(serp.customerQuestions.length >= 3 && serp.customerQuestions[0].sources.includes("People Also Ask"), "customer questions collected, PAA first");
+  ok(serp.recommendations.length >= 3, `recommendations (${serp.recommendations.length})`);
+
+  const brief = buildBrief(indigo, "Best things to do in Adelaide", serp);
+  ok(brief.audience.some((a) => /famil/i.test(a)), `brief audience (${brief.audience.join(" | ")})`);
+  ok(brief.brandIntegration.some((b) => /Central Market/.test(b.detail)), "brief uses the location fact");
+  ok(brief.internalLinks.length >= 1, `brief internal links (${brief.internalLinks.map((l) => l.title).join(", ")})`);
+  ok(brief.outline[0].heading === "Quick answer" && brief.outline.some((o) => o.heading === "FAQs"), "brief outline has quick answer + FAQs");
+
+  const draft = `# Best hotels in Adelaide CBD
+
+Hotel Indigo Adelaide is a world-class hidden gem with 150 rooms and a Michelin-starred restaurant. Hotel Indgo Adelaide is the best choice.
+
+## Things to do
+
+The Mayfair Hotel is nice too. Our favorite spot is the city center.`;
+  const rep = optimiseContent(indigo, { content: draft, keyword: "best hotels in Adelaide CBD", requiredEntities: ["Adelaide Central Market", "Adelaide Oval"], rules: ['Never call us a "resort"'] });
+  const st = (id: string) => rep.checks.find((c) => c.id === id)?.status;
+  ok(st("kw-h1") === "pass", "optimise: keyword in H1");
+  ok(st("brand-claims") === "fail", "optimise: restricted claim (Michelin-starred) caught");
+  ok(st("brand-avoid") === "fail", "optimise: words to avoid caught");
+  ok(st("brand-names") === "fail" && /Indgo/.test(rep.checks.find((c) => c.id === "brand-names")!.detail), "optimise: brand misspelling caught");
+  ok(st("brand-competitors") === "warn", "optimise: competitor mention flagged");
+  ok(st("brand-figures") === "warn", "optimise: 150 rooms not in approved facts (142)");
+  ok(st("brand-english") === "warn", "optimise: US spelling in British English content");
+  ok(st("cta") === "fail" && st("geo-where") === "fail" && st("entities") === "fail", "optimise: missing CTA, location answer, entities");
+  ok(rep.overall < 50, `optimise: low overall score for weak draft (${rep.overall})`);
+
+  const good = `# Best hotels in Adelaide CBD: why guests choose Hotel Indigo Adelaide
+
+Hotel Indigo Adelaide is a boutique hotel in the Adelaide CBD with 142 rooms, a 5-minute walk to Adelaide Central Market. Its rooftop bar with city views is a thoughtfully designed local experience.
+
+## Where should families stay in Adelaide?
+
+Families like Hotel Indigo Adelaide because on-site parking is available and Adelaide Central Market is a 5-minute walk away. Adelaide Oval is a short tram ride.
+
+## What is near the hotel?
+
+Adelaide Central Market and Adelaide Oval are both easy to reach. See our [rooms](https://www.ihg.com/hotelindigo/adelaide/rooms) and [rooftop bar](https://www.ihg.com/hotelindigo/adelaide/bar).
+
+Check availability for your dates and [book your stay](https://www.ihg.com/hotelindigo/adelaide/rooms).`;
+  const rep2 = optimiseContent(indigo, { content: good, keyword: "best hotels in Adelaide CBD", requiredEntities: ["Adelaide Central Market", "Adelaide Oval"] });
+  ok(rep2.overall > rep.overall + 30, `optimise: strong draft scores much higher (${rep2.overall} vs ${rep.overall})`);
+  ok(["brand-claims", "brand-avoid", "brand-names", "geo-where", "geo-why", "geo-audience", "cta", "internal-links", "entities"].every((id) => rep2.checks.find((c) => c.id === id)?.status === "pass"), `optimise: strong draft passes key checks (${rep2.checks.filter((c) => c.status !== "pass").map((c) => c.id).join(",")})`);
+
+  ok(claimPhrase("❌ Cannot claim Michelin-starred".replace("❌ ", "")) === "Michelin-starred", "claimPhrase strips the rule wording");
+  ok(bannedFromRules(['Never call us a resort.', 'Avoid "hidden gem"']).join("|") === "resort|hidden gem" || bannedFromRules(['Never call us a resort.', 'Avoid "hidden gem"']).length === 2, "banned phrases mined from feedback rules");
+
+  const themes = reviewThemes([
+    { source: "Google", place: "X", rating: 5, text: "Great location and the breakfast was delicious. Staff were friendly." },
+    { source: "Google", place: "X", rating: 2, text: "The room was small and noisy. Parking was expensive." },
+  ]);
+  ok(themes.positive.some((t) => t.topic === "breakfast") && themes.negative.some((t) => t.topic === "noise"), "review themes: positive breakfast, negative noise");
+  const qs = collectQuestions([{ text: "Is Ubud suitable for families?", source: "Reddit" }, { text: "is ubud good for families", source: "People Also Ask", weight: 2 }, { text: "Ubud hotels", source: "Related searches" }]);
+  ok(qs.length === 1 && qs[0].frequency === "High" && qs[0].intent.startsWith("Family travel"), `questions merged across sources (${JSON.stringify(qs.map((q) => [q.question, q.frequency, q.intent]))})`);
+
+  const plan = freeOpportunityReport(indigo, [
+    { query: "hotel indigo adelaide parking", clicks: 5, impressions: 400, ctr: 0.0125, position: 3.1, pillar: "company", signals: ["branded", "low CTR for position"], tail: "long", score: 50 },
+    { query: "things to do near adelaide central market", clicks: 1, impressions: 900, ctr: 0.001, position: 14, pillar: "customers", signals: ["striking distance"], tail: "long", score: 90 },
+  ]);
+  ok(plan.briefs.length === 2 && plan.briefs.some((b) => b.action === "local_guide") && plan.briefs.some((b) => b.action === "title_meta_rewrite"), "free content plan: actions from signals");
+
+  const ks = knowledgeScore(indigo, { documents: 0, rules: 0, research: 0 });
+  ok(ks.score > 50 && ks.missing.some((m) => m.label === "Brand documents"), `knowledge score (${ks.score}%)`);
+})();
+
+import { extractEntities } from "../src/lib/intel/entities";
+(() => {
+  const e = extractEntities(["Stay near Hoi An Old Town and An Bang Beach", "An Bang Beach is quiet. Hoi An Old Town is busy.", "Hoi An night market"], { exclude: ["Hoi An", "Vietnam"] }).map((x) => x.name);
+  const pass = e.includes("An Bang Beach") && e.includes("Hoi An Old Town") && !e.includes("Hoi") && !e.includes("Bang Beach");
+  if (!pass) { console.error("FAIL: entities keep Vietnamese names intact", e); process.exitCode = 1; } else console.log("ok: entities keep Vietnamese names intact", e.join(", "));
+})();
+
+import { titleCase } from "../src/lib/intel/text";
+if (titleCase("where to stay in hoi an for couples") !== "Where to Stay in Hoi An for Couples") { console.error("FAIL: titleCase", titleCase("where to stay in hoi an for couples")); process.exitCode = 1; } else console.log("ok: headline case");

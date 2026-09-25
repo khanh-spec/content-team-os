@@ -117,6 +117,9 @@ export async function googleSearch(q: string, project: Project) {
       (r): ForumPost => ({ title: str(r.title) ?? "", link: str(r.link) ?? "", snippet: str(r.snippet), source: str(r.source), date: str(r.date) }),
     ),
     aiOverview: extractAiOverview(json.ai_overview),
+    answerBox: json.answer_box
+      ? { title: str((json.answer_box as Raw).title), snippet: str((json.answer_box as Raw).snippet) ?? str((json.answer_box as Raw).answer) }
+      : null,
   };
 }
 

@@ -1,26 +1,29 @@
 import Link from "next/link";
 import { NewDraftForm } from "@/components/studio";
 import { StatusBadge, Card, SectionTitle, formatDate } from "@/components/ui";
+import { getAI } from "@/lib/ai";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function StudioPage({ params, searchParams }: PageProps<"/projects/[id]/studio">) {
   const { id } = await params;
   const sp = await searchParams;
   const supabase = await createClient();
-  const [{ data: drafts }, { data: runs }] = await Promise.all([
+  const [{ data: drafts }, { data: runs }, ai] = await Promise.all([
     supabase.from("content_drafts").select("id, title, content_type, target_keyword, status, updated_at").eq("project_id", id).order("updated_at", { ascending: false }),
     supabase.from("research_runs").select("id, kind, query, created_at").eq("project_id", id).eq("status", "done").order("created_at", { ascending: false }).limit(20),
+    getAI(supabase),
   ]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
       <div>
         <SectionTitle
-          title="Content Studio"
-          description="Paste content you've already written. The brand writer fact-checks it against the brand library, feedback rules and research, then returns a revised version in the brand's voice."
+          title="Optimise"
+          description="Paste content you've written. Rule-based checks score SEO, GEO, brand compliance and conversion; AI mode also rewrites it with brand facts, SERP insights and customer questions."
         />
         <NewDraftForm
           projectId={id}
+          aiEnabled={!!ai}
           runs={runs ?? []}
           initial={{
             title: typeof sp.title === "string" ? sp.title : "",

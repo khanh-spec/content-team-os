@@ -3,8 +3,7 @@ import "server-only";
 import { z } from "zod";
 import { zodTextFormat } from "openai/helpers/zod";
 import { brandProfile } from "@/lib/context";
-import { MODELS } from "@/lib/env";
-import { openai } from "@/lib/openai";
+import type { AI } from "@/lib/ai";
 import type { Opportunity } from "@/lib/gsc/opportunities";
 import type { LocalSummary } from "@/lib/research/local";
 import type { VisibilitySummary } from "@/lib/research/visibility";
@@ -32,6 +31,7 @@ export const OpportunityReportSchema = z.object({
 export type OpportunityReport = z.infer<typeof OpportunityReportSchema>;
 
 export async function buildOpportunityReport(
+  ai: AI,
   project: Project,
   opportunities: Opportunity[],
   local: LocalSummary[],
@@ -57,8 +57,8 @@ export async function buildOpportunityReport(
     })),
   };
 
-  const res = await openai().responses.parse({
-    model: MODELS.writer,
+  const res = await ai.client.responses.parse({
+    model: ai.model,
     instructions:
       "You are the content strategist for a single hospitality brand. Turn Search Console data into a prioritized content plan using the 3C framework: " +
       "COMPANY (branded + fact queries → make brand facts explicit and quotable), CUSTOMERS (long-tail questions and local-intent queries → answer them with first-hand local knowledge), " +

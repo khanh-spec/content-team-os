@@ -1,4 +1,7 @@
+import { getAI } from "@/lib/ai";
 import { HttpError, handle, must, requireUser } from "@/lib/api";
+import { PREVIEW } from "@/lib/env";
+import { freeOpportunityReport } from "@/lib/intel/plan";
 import { loadProject } from "@/lib/context";
 import { classify, type GscRow } from "@/lib/gsc/opportunities";
 import { buildOpportunityReport } from "@/lib/gsc/report";
@@ -28,12 +31,23 @@ export const POST = handle<Ctx>(async (_req, ctx) => {
   if (!queries.length) throw new HttpError(400, "Import Search Console data first");
 
   const opportunities = classify(queries as GscRow[], project);
-  const report = await buildOpportunityReport(
+  const ai = await getAI(supabase);
+  const report = !ai
+    ? freeOpportunityReport(project, opportunities)
+    : await buildOpportunityReport(
+    ai,
     project,
     opportunities,
-    runs.filter((r) => r.kind === "local_context").map((r) => r.summary as LocalSummary),
+    runs
+      .filter((r) => r.kind === "local_context")
+      .map((r) => {
+        const sm = r.summary as { ai?: LocalSummary } & Partial<LocalSummary>;
+        return sm?.ai ?? (sm?.customer_questions ? (sm as LocalSummary) : null);
+      })
+      .filter((x): x is LocalSummary => !!x),
     runs.filter((r) => r.kind === "ai_visibility").map((r) => r.summary as VisibilitySummary),
   );
+  if (PREVIEW) return { report: { report, created_at: new Date().toISOString() } };
   const row = must(
     await supabase.from("opportunity_reports").insert({ project_id: id, report, created_by: user.id }).select("id").single(),
   );
