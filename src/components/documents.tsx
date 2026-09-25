@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { api } from "@/lib/fetcher";
-import { createClient } from "@/lib/supabase/client";
 import { DOCUMENT_CATEGORIES, type DocumentRow } from "@/lib/types";
 import { Badge, Button, Card, Empty, ErrorNote, Field, Input, Select, Spinner, Textarea, cn, formatDate } from "@/components/ui";
 
@@ -36,17 +35,20 @@ export function DocumentList({ projectId, documents }: { projectId: string; docu
     if (!list.length) return;
     setError(null);
     setQueue(list.map((f) => ({ name: f.name, state: "uploading" })));
-    const supabase = createClient();
     const update = (i: number, patch: Partial<(typeof queue)[number]>) =>
       setQueue((q) => q.map((item, j) => (j === i ? { ...item, ...patch } : item)));
 
     await Promise.all(
       list.map(async (file, i) => {
         try {
-          const safe = file.name.replace(/[^\w.\-]+/g, "_");
-          const path = `${projectId}/${crypto.randomUUID()}-${safe}`;
-          const { error } = await supabase.storage.from("brand-files").upload(path, file, { contentType: file.type || undefined });
-          if (error) throw new Error(error.message);
+          const { path, signedUrl } = await api<{ path: string; signedUrl: string }>(`/api/projects/${projectId}/documents/upload-url`, "POST", {
+            filename: file.name,
+          });
+          const form = new FormData();
+          form.append("cacheControl", "3600");
+          form.append("", file);
+          const res = await fetch(signedUrl, { method: "PUT", body: form, headers: { "x-upsert": "false" } });
+          if (!res.ok) throw new Error((await res.json().catch(() => null))?.message ?? `Upload failed (${res.status})`);
           update(i, { state: "indexing" });
           await api(`/api/projects/${projectId}/documents`, "POST", {
             mode: "upload",

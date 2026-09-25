@@ -10,6 +10,8 @@ import "./globals.css";
 const poppins = Poppins({ variable: "--font-poppins", subsets: ["latin", "latin-ext"], weight: ["400", "500", "600", "700"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Content OS · Heads on Pillows",
   description: "SEO/GEO content brand manager for hospitality projects",

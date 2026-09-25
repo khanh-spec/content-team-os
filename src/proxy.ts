@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { PREVIEW_MESSAGE } from "@/lib/demo/client";
 import { PREVIEW, SUPABASE_KEY, SUPABASE_URL, isEmailAllowed } from "@/lib/env";
 
-const PUBLIC_PATHS = ["/login", "/auth"];
+const PUBLIC_PATHS = ["/login", "/auth", "/api/auth"];
 
 // In preview these run live (SerpApi / OpenAI) and return results without saving.
 const PREVIEW_ALLOWED = [

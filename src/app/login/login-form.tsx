@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { Button, ErrorNote, Field, Input } from "@/components/ui";
 
 export function LoginForm({ initialError }: { initialError: string | null }) {
@@ -13,13 +12,14 @@ export function LoginForm({ initialError }: { initialError: string | null }) {
     e.preventDefault();
     setError(null);
     setState("sending");
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email }),
     });
+    const error = res.ok ? null : ((await res.json().catch(() => null))?.error ?? "Could not send the sign-in link");
     if (error) {
-      setError(error.message);
+      setError(error);
       setState("idle");
     } else setState("sent");
   }

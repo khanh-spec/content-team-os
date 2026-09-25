@@ -61,8 +61,8 @@ cp .env.example .env.local
 `npm run db:start` prints an **API URL** (`http://127.0.0.1:54321`) and a **Publishable key** (older CLI versions call it the *anon key*). Put them in `.env.local`, together with your OpenAI and SerpApi keys:
 
 ```bash
-NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable / anon key from db:start>
+SUPABASE_URL=http://127.0.0.1:54321
+SUPABASE_PUBLISHABLE_KEY=<publishable / anon key from db:start>
 ALLOWED_EMAIL_DOMAINS=
 OPENAI_API_KEY=<your key>
 SERPAPI_API_KEY=<your key>

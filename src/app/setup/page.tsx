@@ -4,8 +4,8 @@ import { SUPABASE_KEY, SUPABASE_URL } from "@/lib/env";
 export const dynamic = "force-dynamic";
 
 const CHECKS = [
-  { name: "NEXT_PUBLIC_SUPABASE_URL", ok: () => !!SUPABASE_URL, hint: "Local: http://127.0.0.1:54321 (printed by npm run db:start)" },
-  { name: "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", ok: () => !!SUPABASE_KEY, hint: "The Publishable (or anon) key printed by npm run db:start" },
+  { name: "SUPABASE_URL", ok: () => !!SUPABASE_URL, hint: "Local: http://127.0.0.1:54321 (printed by npm run db:start)" },
+  { name: "SUPABASE_PUBLISHABLE_KEY", ok: () => !!SUPABASE_KEY, hint: "The Publishable (or anon) key printed by npm run db:start" },
   { name: "OPENAI_API_KEY", ok: () => !!process.env.OPENAI_API_KEY, hint: "Needed for rewrites, research summaries and AI visibility" },
   { name: "SERPAPI_API_KEY", ok: () => !!process.env.SERPAPI_API_KEY, hint: "Needed for Local Research and AI Visibility" },
 ];
