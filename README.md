@@ -80,7 +80,7 @@ Useful commands: `npm run db:status` (show URLs and keys again), `npm run db:res
 ## Deploy (hosted Supabase + Vercel)
 
 1. **Supabase**
-   - Create a project. In the SQL editor, run `supabase/migrations/0001_init.sql`, then `0002_brand_intelligence.sql`. They create the tables, search indexes, RLS policies and the private `brand-files` bucket.
+   - Create a project. In the SQL editor, run the files in `supabase/migrations` in order (`0001`, `0002`, `0003`). They create the tables, search indexes, RLS policies and the private `brand-files` bucket.
    - Under Authentication → URL Configuration, set the Site URL to your Vercel URL and add `https://YOUR-DOMAIN/auth/callback` to the redirect URLs.
    - Recommended: disable open sign-ups or restrict them to your domain. The app also enforces `ALLOWED_EMAIL_DOMAINS`.
 2. **Environment**: copy `.env.example` to `.env.local` and fill in the Supabase URL/key, `OPENAI_API_KEY` and `SERPAPI_API_KEY`.
